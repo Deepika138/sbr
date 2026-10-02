@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISA-101 High-Performance HMI | Alarm Ledger</title>
+
+    <!-- Firebase v8 CDN Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <!-- Modular Enterprise Design System -->
+    <link rel="stylesheet" href="../../css/isa-101-theme.css">
+</head>
+<body>
+
+    <div class="app-layout">
+        
+        <!-- MASTER HEADER (ISA-101 COMPLIANT) -->
+        <header class="isa-header">
+            <div class="header-section">
+                <div class="header-brand">
+                    <span class="header-brand-title">SBR-CORE</span>
+                    <span class="header-brand-sub">ISA-101 HMI V2.0</span>
+                </div>
+                
+                <div class="header-data-block">
+                    <span class="header-data-label">Facility Node</span>
+                    <span class="header-data-value">BLR-INT-001</span>
+                </div>
+                
+                <div class="header-data-block">
+                    <span class="header-data-label">Process ID</span>
+                    <span class="header-data-value">SBR-8492</span>
+                </div>
+
+                <div class="header-data-block">
+                    <span class="header-data-label">PLC Comm Status</span>
+                    <div class="plc-status-box">
+                        <div class="plc-status-indicator" id="hdr-plc-indicator"></div>
+                        <span class="header-data-value" style="font-size: var(--isa-font-size-sm);">NORMAL</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="header-section">
+                <div class="header-data-block" style="text-align: right;">
+                    <span class="header-data-label">Shift Uptime</span>
+                    <span class="header-data-value" id="hdr-uptime" style="font-family: 'Courier New', Courier, monospace;">04:12:55</span>
+                </div>
+
+                <div class="header-data-block" style="border-left: 1px solid var(--isa-border-medium); padding-left: var(--isa-space-lg);">
+                    <span class="header-data-label">Active Operator</span>
+                    <span class="header-data-value" id="hdr-operator-id">OP-XXXX</span>
+                </div>
+
+                <button class="isa-btn-estop" id="btn-global-estop">SYSTEM HALT</button>
+            </div>
+        </header>
+
+        <!-- UNIVERSAL SUB-NAVIGATION -->
+        <nav class="isa-nav">
+            <div class="isa-nav-tab" onclick="window.location.href='operator.html'">CORE KINETICS</div>
+            <div class="isa-nav-tab" onclick="window.location.href='pid-tuning.html'">PID TUNING</div>
+            <div class="isa-nav-tab" onclick="window.location.href='trends.html'">TREND ANALYZER</div>
+            <div class="isa-nav-tab active" onclick="window.location.href='alarm-history.html'">ALARM LEDGER</div>
+            <div class="isa-nav-tab" onclick="window.location.href='maintenance.html'">MAINTENANCE</div>
+        </nav>
+
+        <!-- MAIN HMI WORKSPACE GRID (1-Column Layout for Ledger) -->
+        <main class="hmi-workspace" style="grid-template-columns: 1fr; grid-template-rows: auto 1fr;">
+            
+            <!-- CONTROL BAR -->
+            <div class="isa-panel">
+                <div class="isa-panel-body" style="flex-direction: row; justify-content: space-between; align-items: center; padding: var(--isa-space-md);">
+                    
+                    <div class="flex-row gap-md" style="flex-grow: 1;">
+                        <input type="text" id="ledger-search" placeholder="Search tags or descriptions..." style="width: 350px; padding: 8px; font-size: var(--isa-font-size-sm); border: 1px solid var(--isa-border-dark); background-color: var(--isa-bg-screen); color: var(--isa-text-primary); outline: none;">
+                        
+                        <select id="ledger-filter" style="padding: 8px; font-size: var(--isa-font-size-sm); border: 1px solid var(--isa-border-dark); background-color: var(--isa-bg-screen); color: var(--isa-text-primary); outline: none; cursor: pointer;">
+                            <option value="ALL">All Priorities</option>
+                            <option value="1">Critical (L1)</option>
+                            <option value="2">Warning (L2)</option>
+                            <option value="3">System (L3)</option>
+                        </select>
+                    </div>
+
+                    <button class="isa-btn isa-btn-primary" id="btn-export-csv">EXPORT LOG (CSV)</button>
+                    
+                </div>
+            </div>
+
+            <!-- DATA TABLE -->
+            <div class="isa-panel">
+                <div class="isa-panel-header">
+                    <span class="isa-panel-title">Historical Alarm Records</span>
+                </div>
+                <div class="isa-panel-body" style="padding: 0; overflow-y: scroll;">
+                    <table class="isa-table" id="alarm-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 15%;">Date/Time</th>
+                                <th style="width: 15%;">Tag ID</th>
+                                <th style="width: 35%;">Description</th>
+                                <th style="width: 10%; text-align: center;">Priority</th>
+                                <th style="width: 15%;">Operator ID</th>
+                                <th style="width: 10%;">Ack Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="alarm-tbody">
+                            <!-- Rows injected via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Centralized Enterprise Architecture Scripts -->
+    <script src="../../js/firebase-config.js"></script>
+    <script src="../../js/auth-manager.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            // 1. MODULAR SECURITY ENFORCEMENT
+            window.enforceClearance('operator', '../../op-auth-blr-x7a9.html');
+
+            // E-STOP Global Logout
+            const btnEstop = document.getElementById('btn-global-estop');
+            if (btnEstop) {
+                btnEstop.addEventListener('click', function() {
+                    btnEstop.innerText = "HALTING...";
+                    btnEstop.style.backgroundColor = "#c53030";
+                    window.secureLogout('../../op-auth-blr-x7a9.html');
+                });
+            }
+
+            // 2. HARDCODED HISTORICAL ALARM DATA
+            const alarmHistory = [
+                { time: "2026-09-13 14:22:10", tag: "ALM-LSH-101", desc: "EQ Tank High Level", prio: 1, op: "OP-4492", ack: "1m 12s" },
+                { time: "2026-09-13 11:05:41", tag: "ALM-PH-202", desc: "pH Out of Range (Low)", prio: 2, op: "OP-4492", ack: "0m 45s" },
+                { time: "2026-09-12 22:14:05", tag: "ALM-COM-991", desc: "Blower 1 VFD Comm Loss", prio: 1, op: "OP-8821", ack: "4m 02s" },
+                { time: "2026-09-12 18:30:00", tag: "ALM-TSS-301", desc: "Turbidity Warning Limit Exceeded", prio: 2, op: "OP-8821", ack: "2m 15s" },
+                { time: "2026-09-12 09:12:33", tag: "ALM-VLV-103", desc: "Decant Valve Position Fault", prio: 1, op: "OP-4492", ack: "1m 55s" },
+                { time: "2026-09-11 15:44:21", tag: "SYS-MEM-001", desc: "PLC Memory High Warning", prio: 3, op: "AUTO", ack: "0m 10s" }
+            ];
+
+            // 3. RENDER FUNCTION
+            const tbody = document.getElementById('alarm-tbody');
+            
+            function getPriorityIndicator(level) {
+                if (level === 1) {
+                    return '<div class="alarm-indicator"><div class="alarm-l1" style="background-color: var(--isa-text-inverse); color: var(--isa-alarm-l1); border-color: var(--isa-text-inverse);">1</div></div>';
+                } else if (level === 2) {
+                    return '<div class="alarm-indicator"><div class="alarm-l2"></div></div>';
+                } else if (level === 3) {
+                    return '<div class="alarm-indicator"><div class="alarm-l3">3</div></div>';
+                }
+                return level;
+            }
+
+            function renderTable(data) {
+                tbody.innerHTML = "";
+                data.forEach(function(alarm, index) {
+                    const tr = document.createElement('tr');
+                    // Add subtle stripe effect
+                    if (index % 2 !== 0) tr.classList.add('active-row');
+                    
+                    tr.innerHTML = `
+                        <td style="font-family: 'Courier New', Courier, monospace;">${alarm.time}</td>
+                        <td style="font-weight: bold;">${alarm.tag}</td>
+                        <td>${alarm.desc}</td>
+                        <td style="text-align: center;">${getPriorityIndicator(alarm.prio)}</td>
+                        <td style="font-family: 'Courier New', Courier, monospace;">${alarm.op}</td>
+                        <td style="font-family: 'Courier New', Courier, monospace;">${alarm.ack}</td>
+                    `;
+                    // Embed priority level as a data attribute for easy filtering
+                    tr.setAttribute('data-priority', alarm.prio);
+                    tbody.appendChild(tr);
+                });
+            }
+
+            // Initial render
+            renderTable(alarmHistory);
+
+            // 4. SEARCH & FILTER LOGIC
+            const searchInput = document.getElementById('ledger-search');
+            const filterSelect = document.getElementById('ledger-filter');
+
+            function applyFilters() {
+                const query = searchInput.value.toLowerCase();
+                const prioFilter = filterSelect.value;
+                const rows = tbody.querySelectorAll('tr');
+
+                rows.forEach(function(row) {
+                    const textContent = row.innerText.toLowerCase();
+                    const rowPrio = row.getAttribute('data-priority');
+                    
+                    const matchesSearch = textContent.includes(query);
+                    const matchesPrio = (prioFilter === "ALL") || (prioFilter === rowPrio);
+
+                    if (matchesSearch && matchesPrio) {
+                        row.style.display = "";
+                    } else {
+                        row.style.display = "none";
+                    }
+                });
+            }
+
+            searchInput.addEventListener('input', applyFilters);
+            filterSelect.addEventListener('change', applyFilters);
+
+            // Dummy CSV Export
+            const btnExport = document.getElementById('btn-export-csv');
+            if (btnExport) {
+                btnExport.addEventListener('click', function() {
+                    alert("SYSTEM NOTICE: CSV payload generated and queued for download.");
+                });
+            }
+
+        });
+    </script>
+    <!-- CSV Export Integration -->
+    <script src="../../js/csv-generator.js"></script>
+    <script>
+        // Wire the export button to the HTML table
+        const exportBtn = document.querySelector('.isa-btn');
+        if(exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                // Pass the ID of your alarm table
+                exportTableToCSV('alarm-table-id', 'Alarm_Ledger_Export.csv'); 
+            });
+        }
+    </script>
+</body>
+</html>

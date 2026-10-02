@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISA-101 High-Performance HMI | Trend Analyzer</title>
+
+    <!-- Firebase v8 CDN Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Modular Enterprise Design System -->
+    <link rel="stylesheet" href="../../css/isa-101-theme.css">
+</head>
+<body>
+
+    <div class="app-layout">
+        
+        <!-- MASTER HEADER (ISA-101 COMPLIANT) -->
+        <header class="isa-header">
+            <div class="header-section">
+                <div class="header-brand">
+                    <span class="header-brand-title">SBR-CORE</span>
+                    <span class="header-brand-sub">ISA-101 HMI V2.0</span>
+                </div>
+                
+                <div class="header-data-block">
+                    <span class="header-data-label">Facility Node</span>
+                    <span class="header-data-value">BLR-INT-001</span>
+                </div>
+                
+                <div class="header-data-block">
+                    <span class="header-data-label">Process ID</span>
+                    <span class="header-data-value">SBR-8492</span>
+                </div>
+
+                <div class="header-data-block">
+                    <span class="header-data-label">PLC Comm Status</span>
+                    <div class="plc-status-box">
+                        <div class="plc-status-indicator" id="hdr-plc-indicator"></div>
+                        <span class="header-data-value" style="font-size: var(--isa-font-size-sm);">NORMAL</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="header-section">
+                <div class="header-data-block" style="text-align: right;">
+                    <span class="header-data-label">Shift Uptime</span>
+                    <span class="header-data-value" id="hdr-uptime" style="font-family: 'Courier New', Courier, monospace;">04:12:55</span>
+                </div>
+
+                <div class="header-data-block" style="border-left: 1px solid var(--isa-border-medium); padding-left: var(--isa-space-lg);">
+                    <span class="header-data-label">Active Operator</span>
+                    <span class="header-data-value" id="hdr-operator-id">OP-XXXX</span>
+                </div>
+
+                <button class="isa-btn-estop" id="btn-global-estop">SYSTEM HALT</button>
+            </div>
+        </header>
+
+        <!-- UNIVERSAL SUB-NAVIGATION -->
+        <nav class="isa-nav">
+            <div class="isa-nav-tab" onclick="window.location.href='operator.html'">CORE KINETICS</div>
+            <div class="isa-nav-tab" onclick="window.location.href='pid-tuning.html'">PID TUNING</div>
+            <div class="isa-nav-tab active" onclick="window.location.href='trends.html'">TREND ANALYZER</div>
+            <div class="isa-nav-tab" onclick="window.location.href='alarm-history.html'">ALARM LEDGER</div>
+            <div class="isa-nav-tab" onclick="window.location.href='maintenance.html'">MAINTENANCE</div>
+        </nav>
+
+        <!-- MAIN HMI WORKSPACE GRID (2-Column Layout for Analyzer) -->
+        <main class="hmi-workspace" style="grid-template-columns: 280px 1fr;">
+            
+            <!-- LEFT COLUMN: TRACE CONTROLS -->
+            <div class="flex-col gap-sm h-100">
+                <div class="isa-panel" style="flex: 1;">
+                    <div class="isa-panel-header">
+                        <span class="isa-panel-title">Trace Controls</span>
+                    </div>
+                    
+                    <div class="isa-panel-body">
+                        
+                        <!-- Date/Time Range -->
+                        <div class="border-box flex-col gap-sm">
+                            <span class="data-label">TIME WINDOW</span>
+                            
+                            <div class="flex-col gap-xs">
+                                <label style="font-size: var(--isa-font-size-xs); color: var(--isa-text-secondary);">START TIME</label>
+                                <input type="datetime-local" id="time-start" style="padding: 4px; font-family: 'Courier New', Courier, monospace; font-size: var(--isa-font-size-sm); border: 1px solid var(--isa-border-dark); background-color: var(--isa-bg-screen); color: var(--isa-text-primary); outline: none;">
+                            </div>
+                            
+                            <div class="flex-col gap-xs" style="margin-top: 4px;">
+                                <label style="font-size: var(--isa-font-size-xs); color: var(--isa-text-secondary);">END TIME</label>
+                                <input type="datetime-local" id="time-end" style="padding: 4px; font-family: 'Courier New', Courier, monospace; font-size: var(--isa-font-size-sm); border: 1px solid var(--isa-border-dark); background-color: var(--isa-bg-screen); color: var(--isa-text-primary); outline: none;">
+                            </div>
+                            
+                            <button class="isa-btn" id="btn-refresh-range" style="margin-top: var(--isa-space-sm); width: 100%;">QUERY DB</button>
+                        </div>
+
+                        <!-- Data Tag Toggles -->
+                        <div class="border-box flex-col gap-sm" style="margin-top: var(--isa-space-sm);">
+                            <span class="data-label">5-LITER BATCH SENSORS</span>
+                            
+                            <label class="flex-row gap-sm" style="cursor: pointer; padding: 4px 0; border-bottom: 1px dotted var(--isa-border-light);">
+                                <input type="checkbox" class="trace-toggle" data-dataset-index="0" checked style="width: 16px; height: 16px; cursor: pointer;">
+                                <div style="width: 12px; height: 12px; background-color: #2c5282; border: 1px solid #111;"></div>
+                                <span style="font-size: var(--isa-font-size-sm); color: var(--isa-text-primary); font-weight: bold;">pH Level</span>
+                            </label>
+
+                            <label class="flex-row gap-sm" style="cursor: pointer; padding: 4px 0; border-bottom: 1px dotted var(--isa-border-light);">
+                                <input type="checkbox" class="trace-toggle" data-dataset-index="1" checked style="width: 16px; height: 16px; cursor: pointer;">
+                                <div style="width: 12px; height: 12px; background-color: #4a4e51; border: 1px solid #111;"></div>
+                                <span style="font-size: var(--isa-font-size-sm); color: var(--isa-text-primary); font-weight: bold;">Turbidity (NTU)</span>
+                            </label>
+
+                            <label class="flex-row gap-sm" style="cursor: pointer; padding: 4px 0; border-bottom: 1px dotted var(--isa-border-light);">
+                                <input type="checkbox" class="trace-toggle" data-dataset-index="2" checked style="width: 16px; height: 16px; cursor: pointer;">
+                                <div style="width: 12px; height: 12px; background-color: #285e61; border: 1px solid #111;"></div>
+                                <span style="font-size: var(--isa-font-size-sm); color: var(--isa-text-primary); font-weight: bold;">TDS (mg/L)</span>
+                            </label>
+
+                            <label class="flex-row gap-sm" style="cursor: pointer; padding: 4px 0; border-bottom: 1px dotted var(--isa-border-light);">
+                                <input type="checkbox" class="trace-toggle" data-dataset-index="3" style="width: 16px; height: 16px; cursor: pointer;">
+                                <div style="width: 12px; height: 12px; background-color: #556b2f; border: 1px solid #111;"></div>
+                                <span style="font-size: var(--isa-font-size-sm); color: var(--isa-text-primary); font-weight: bold;">Temperature (°C)</span>
+                            </label>
+
+                            <label class="flex-row gap-sm" style="cursor: pointer; padding: 4px 0;">
+                                <input type="checkbox" class="trace-toggle" data-dataset-index="4" style="width: 16px; height: 16px; cursor: pointer;">
+                                <div style="width: 12px; height: 12px; background-color: #553c9a; border: 1px solid #111;"></div>
+                                <span style="font-size: var(--isa-font-size-sm); color: var(--isa-text-primary); font-weight: bold;">Flow (L/min)</span>
+                            </label>
+                        </div>
+
+                        <div class="flex-col gap-sm" style="margin-top: auto; padding-top: var(--isa-space-lg);">
+                            <button class="isa-btn isa-btn-primary" id="btn-export-trace" style="width: 100%; height: 40px;">EXPORT TRACE (CSV)</button>
+                        </div>
+                        
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: MAIN CHART AREA -->
+            <div class="flex-col gap-sm h-100">
+                <div class="isa-panel" style="flex: 1;">
+                    <div class="isa-panel-header">
+                        <span class="isa-panel-title">Historical Multiplexed Trace (5L Batch Cycle)</span>
+                        <span style="font-size: var(--isa-font-size-xs); color: var(--isa-text-muted); font-weight: bold;">INTERPOLATION: DISABLED</span>
+                    </div>
+                    <div class="isa-panel-body" style="padding: 0; position: relative;">
+                        <canvas id="historicalTrendChart" style="width: 100%; height: 100%; background-color: var(--isa-bg-faceplate);"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Centralized Enterprise Architecture Scripts -->
+    <script src="../../js/firebase-config.js"></script>
+    <script src="../../js/auth-manager.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            // 1. MODULAR SECURITY ENFORCEMENT
+            window.enforceClearance('operator', '../../op-auth-blr-x7a9.html');
+
+            // Global Logout
+            const btnEstop = document.getElementById('btn-global-estop');
+            if (btnEstop) {
+                btnEstop.addEventListener('click', function() {
+                    btnEstop.innerText = "HALTING...";
+                    btnEstop.style.backgroundColor = "#c53030";
+                    window.secureLogout('../../op-auth-blr-x7a9.html');
+                });
+            }
+
+            // Sub-nav interactions (visual only for this module)
+            const navTabs = document.querySelectorAll('.isa-nav-tab');
+            navTabs.forEach(function(tab) {
+                tab.addEventListener('click', function() {
+                    if (this.innerText.includes('TREND ANALYZER')) return;
+                    alert("SYSTEM NOTICE: Navigational routing disabled in Analyzer mode. Export trace or return to master view.");
+                });
+            });
+
+            // Set default date picker values (mock recent history)
+            const now = new Date();
+            const past = new Date(now.getTime() - (4 * 60 * 60 * 1000)); // 4 hours ago
+            
+            const formatDateForInput = (d) => {
+                return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+            };
+            
+            document.getElementById('time-start').value = formatDateForInput(past);
+            document.getElementById('time-end').value = formatDateForInput(now);
+
+            // 2. SIMULATE 5-LITER BATCH CYCLE DATA (120 data points representing ~120 mins)
+            const dataPoints = 120;
+            const labels = [];
+            const dataPH = [];
+            const dataTurbidity = [];
+            const dataTDS = [];
+            const dataTemp = [];
+            const dataFlow = [];
+
+            // Base values
+            let ph = 7.8;
+            let ntu = 300;
+            let tds = 450;
+            let temp = 25.0;
+            let flow = 0;
+
+            for (let i = 0; i < dataPoints; i++) {
+                // Generate time labels
+                let labelTime = new Date(past.getTime() + (i * 2 * 60000)); 
+                labels.push(labelTime.getHours().toString().padStart(2, '0') + ':' + labelTime.getMinutes().toString().padStart(2, '0'));
+
+                // Phase 1: Fill (0-15)
+                if (i < 15) {
+                    flow = 0.33; // ~5L over 15 mins
+                    ntu = Math.min(400, ntu + 5 + (Math.random() * 4));
+                    ph = 7.6 + (Math.random() * 0.1);
+                } 
+                // Phase 2: React/Aeration (15-75)
+                else if (i >= 15 && i < 75) {
+                    flow = 0;
+                    ph = Math.max(7.0, ph - 0.015) + (Math.random() * 0.04 - 0.02); // pH drops due to nitrification
+                    ntu = 350 + (Math.random() * 20 - 10); // Mixed liquor suspended
+                    temp = 25.5 + (Math.random() * 0.2); // Blower adds slight heat
+                }
+                // Phase 3: Settle (75-105)
+                else if (i >= 75 && i < 105) {
+                    flow = 0;
+                    ph = ph + (Math.random() * 0.02 - 0.01);
+                    ntu = Math.max(15, ntu - 12); // Rapid settling of biomass
+                    temp = 25.2 + (Math.random() * 0.1); // Cooling
+                }
+                // Phase 4: Decant (105-120)
+                else {
+                    flow = 0.25; 
+                    ntu = Math.max(5, ntu - 1); // Clean effluent
+                    ph = ph + (Math.random() * 0.02 - 0.01);
+                }
+
+                // Add slight noise to TDS
+                tds = tds + (Math.random() * 4 - 2);
+
+                dataPH.push(ph.toFixed(2));
+                dataTurbidity.push(ntu.toFixed(1));
+                dataTDS.push(tds.toFixed(0));
+                dataTemp.push(temp.toFixed(1));
+                dataFlow.push(flow.toFixed(2));
+            }
+
+            // 3. INITIALIZE CHART.JS (ISA-101 STRICT STYLING)
+            const ctx = document.getElementById('historicalTrendChart').getContext('2d');
+            
+            const analyzerChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'pH Level',
+                            data: dataPH,
+                            borderColor: '#2c5282', // Dark Blue
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            fill: false,
+                            tension: 0,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Turbidity (NTU)',
+                            data: dataTurbidity,
+                            borderColor: '#4a4e51', // Dark Grey
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            fill: false,
+                            tension: 0,
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: 'TDS (mg/L)',
+                            data: dataTDS,
+                            borderColor: '#285e61', // Dark Teal
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            fill: false,
+                            tension: 0,
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: 'Temperature (°C)',
+                            data: dataTemp,
+                            borderColor: '#556b2f', // Dark Olive
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            fill: false,
+                            tension: 0,
+                            yAxisID: 'y',
+                            hidden: true
+                        },
+                        {
+                            label: 'Flow (L/min)',
+                            data: dataFlow,
+                            borderColor: '#553c9a', // Muted Purple
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            fill: false,
+                            tension: 0,
+                            yAxisID: 'y2',
+                            hidden: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: true,
+                                drawBorder: true,
+                                borderColor: '#111111',
+                                color: '#cfd4d8'
+                            },
+                            ticks: {
+                                color: '#111111',
+                                font: { family: 'Courier New, Courier, monospace', size: 10 },
+                                maxTicksLimit: 12
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: 'pH / Temp', color: '#111111', font: { weight: 'bold' } },
+                            grid: {
+                                drawBorder: true,
+                                borderColor: '#111111',
+                                color: '#cfd4d8'
+                            },
+                            ticks: { color: '#111111', font: { family: 'Courier New, Courier, monospace' } }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: { display: true, text: 'Turbidity / TDS', color: '#111111', font: { weight: 'bold' } },
+                            grid: { display: false },
+                            ticks: { color: '#111111', font: { family: 'Courier New, Courier, monospace' } }
+                        },
+                        y2: {
+                            type: 'linear',
+                            display: false,
+                            position: 'right',
+                            title: { display: true, text: 'Flow (L/min)', color: '#111111', font: { weight: 'bold' } },
+                            grid: { display: false },
+                            min: 0,
+                            max: 1.0
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#e0e4e7',
+                            titleColor: '#111111',
+                            bodyColor: '#111111',
+                            borderColor: '#4a4e51',
+                            borderWidth: 1,
+                            cornerRadius: 0,
+                            titleFont: { family: 'Arial, Helvetica, sans-serif' },
+                            bodyFont: { family: 'Courier New, Courier, monospace', size: 12 }
+                        }
+                    },
+                    layout: {
+                        padding: 10
+                    }
+                }
+            });
+
+            // 4. CHECKBOX TOGGLE LOGIC
+            const traceToggles = document.querySelectorAll('.trace-toggle');
+            
+            traceToggles.forEach(function(toggle) {
+                toggle.addEventListener('change', function() {
+                    const datasetIndex = parseInt(this.getAttribute('data-dataset-index'));
+                    analyzerChart.data.datasets[datasetIndex].hidden = !this.checked;
+                    
+                    // Toggle Flow yAxis visibility if Flow checkbox is toggled
+                    if (datasetIndex === 4) {
+                        analyzerChart.options.scales.y2.display = this.checked;
+                    }
+                    
+                    analyzerChart.update();
+                });
+            });
+
+            // UX Actions
+            document.getElementById('btn-refresh-range').addEventListener('click', function() {
+                alert("SYSTEM NOTICE: Database query complete. Trace window updated.");
+            });
+
+            document.getElementById('btn-export-trace').addEventListener('click', function() {
+                const originalText = this.innerText;
+                this.innerText = 'GENERATING TRACE...';
+                this.disabled = true;
+                this.style.backgroundColor = 'var(--isa-border-medium)';
+                
+                setTimeout(() => {
+                    alert("SYSTEM NOTICE: CSV Trace file generated.");
+                    this.innerText = originalText;
+                    this.disabled = false;
+                    this.style.backgroundColor = 'var(--isa-state-normal)';
+                }, 800);
+            });
+
+        });
+    </script>
+    <!-- Chart Engine Integration -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../../js/chart-engine.js"></script>
+    <script>
+        // The global chart-engine.js will automatically format this to ISA-101 standards
+        // Call your window.renderTrendChart() function here when ready
+    </script>
+</body>
+</html>

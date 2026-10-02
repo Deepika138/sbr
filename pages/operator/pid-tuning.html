@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISA-101 High-Performance HMI | PID Loop Tuning</title>
+
+    <!-- Firebase v8 CDN Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Modular Enterprise Design System -->
+    <link rel="stylesheet" href="../../css/isa-101-theme.css">
+</head>
+<body>
+
+    <div class="app-layout">
+        
+        <!-- MASTER HEADER (ISA-101 COMPLIANT) -->
+        <header class="isa-header">
+            <div class="header-section">
+                <div class="header-brand">
+                    <span class="header-brand-title">SBR-CORE</span>
+                    <span class="header-brand-sub">ISA-101 HMI V2.0</span>
+                </div>
+                
+                <div class="header-data-block">
+                    <span class="header-data-label">Facility Node</span>
+                    <span class="header-data-value">BLR-INT-001</span>
+                </div>
+                
+                <div class="header-data-block">
+                    <span class="header-data-label">Process ID</span>
+                    <span class="header-data-value">SBR-8492</span>
+                </div>
+
+                <div class="header-data-block">
+                    <span class="header-data-label">PLC Comm Status</span>
+                    <div class="plc-status-box">
+                        <div class="plc-status-indicator" id="hdr-plc-indicator"></div>
+                        <span class="header-data-value" style="font-size: var(--isa-font-size-sm);">NORMAL</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="header-section">
+                <div class="header-data-block" style="text-align: right;">
+                    <span class="header-data-label">Shift Uptime</span>
+                    <span class="header-data-value" id="hdr-uptime" style="font-family: 'Courier New', Courier, monospace;">04:12:55</span>
+                </div>
+
+                <div class="header-data-block" style="border-left: 1px solid var(--isa-border-medium); padding-left: var(--isa-space-lg);">
+                    <span class="header-data-label">Active Operator</span>
+                    <span class="header-data-value" id="hdr-operator-id">OP-XXXX</span>
+                </div>
+
+                <button class="isa-btn-estop" id="btn-global-estop">SYSTEM HALT</button>
+            </div>
+        </header>
+
+        <!-- UNIVERSAL SUB-NAVIGATION -->
+        <nav class="isa-nav">
+            <div class="isa-nav-tab" onclick="window.location.href='operator.html'">CORE KINETICS</div>
+            <div class="isa-nav-tab active" onclick="window.location.href='pid-tuning.html'">PID TUNING</div>
+            <div class="isa-nav-tab" onclick="window.location.href='trends.html'">TREND ANALYZER</div>
+            <div class="isa-nav-tab" onclick="window.location.href='alarm-history.html'">ALARM LEDGER</div>
+            <div class="isa-nav-tab" onclick="window.location.href='maintenance.html'">MAINTENANCE</div>
+        </nav>
+
+        <!-- MAIN HMI WORKSPACE GRID (Override columns for wider chart) -->
+        <main class="hmi-workspace" style="grid-template-columns: 300px 1fr 300px;">
+            
+            <!-- LEFT COLUMN: LOOP SELECTOR & PROCESS VARIABLES -->
+            <div class="flex-col gap-sm h-100">
+                <div class="isa-panel" style="flex: 1;">
+                    <div class="isa-panel-header">
+                        <span class="isa-panel-title">Control Loop Selection</span>
+                    </div>
+                    
+                    <div class="isa-panel-body">
+                        
+                        <div class="border-box flex-col gap-sm">
+                            <span class="data-label">ACTIVE CONTROL LOOP</span>
+                            <select style="width: 100%; font-size: var(--isa-font-size-md); font-weight: bold; padding: 4px; border: 1px solid var(--isa-border-dark); background-color: var(--isa-bg-faceplate); color: var(--isa-text-primary); outline: none; cursor: pointer;">
+                                <option>BLOWER 1 VFD (DO Control)</option>
+                                <option>BLOWER 2 VFD (DO Control)</option>
+                                <option>DECANT VALVE V-103 (Flow Control)</option>
+                            </select>
+                        </div>
+
+                        <div class="border-box flex-col gap-sm" style="margin-top: var(--isa-space-sm);">
+                            <span class="data-label">PROCESS VARIABLE (PV)</span>
+                            <div class="data-value-group">
+                                <span class="data-value" id="pid-pv">2.14</span>
+                                <span class="data-unit">mg/L</span>
+                            </div>
+                        </div>
+
+                        <div class="border-box flex-col gap-sm" style="margin-top: var(--isa-space-sm); background-color: var(--isa-bg-screen);">
+                            <span class="data-label">SETPOINT (SP)</span>
+                            <div class="data-value-group">
+                                <span class="data-value" id="pid-sp" style="color: var(--isa-text-secondary);">2.00</span>
+                                <span class="data-unit">mg/L</span>
+                            </div>
+                        </div>
+
+                        <div class="border-box flex-col gap-sm" style="margin-top: var(--isa-space-sm);">
+                            <span class="data-label">CONTROL OUTPUT (CV)</span>
+                            <div class="data-value-group">
+                                <span class="data-value" id="pid-cv">65.2</span>
+                                <span class="data-unit">%</span>
+                            </div>
+                            <div class="mai-container" style="height: 14px; margin-top: 6px;">
+                                <div class="mai-track">
+                                    <div class="mai-fill" id="bar-pid-cv" style="width: 65.2%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- MIDDLE COLUMN: TUNING TREND CHART -->
+            <div class="flex-col gap-sm h-100">
+                <div class="isa-panel" style="flex: 1;">
+                    <div class="isa-panel-header">
+                        <span class="isa-panel-title">Tuning Trend (PV vs SP)</span>
+                        <span style="font-size: var(--isa-font-size-xs); color: var(--isa-text-muted); font-weight: bold;">T-120 SEC WINDOW</span>
+                    </div>
+                    <div class="isa-panel-body" style="padding: 0; position: relative;">
+                        <canvas id="pidTuningChart" style="width: 100%; height: 100%; background-color: var(--isa-bg-faceplate);"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: PID PARAMETERS & ACTIONS -->
+            <div class="flex-col gap-sm h-100">
+                <div class="isa-panel" style="flex: 1;">
+                    <div class="isa-panel-header">
+                        <span class="isa-panel-title">Tuning Parameters</span>
+                    </div>
+                    
+                    <div class="isa-panel-body">
+                        
+                        <div class="border-box flex-col gap-sm">
+                            <span class="data-label">PROPORTIONAL (Kp)</span>
+                            <input type="number" value="1.25" step="0.01" style="width: 100%; padding: 6px; font-family: 'Courier New', Courier, monospace; font-size: var(--isa-font-size-lg); font-weight: bold; border: 1px solid var(--isa-border-dark); background-color: var(--isa-bg-screen); color: var(--isa-text-primary); outline: none;">
+                        </div>
+                        
+                        <div class="border-box flex-col gap-sm" style="margin-top: var(--isa-space-sm);">
+                            <span class="data-label">INTEGRAL (Ki)</span>
+                            <input type="number" value="0.05" step="0.01" style="width: 100%; padding: 6px; font-family: 'Courier New', Courier, monospace; font-size: var(--isa-font-size-lg); font-weight: bold; border: 1px solid var(--isa-border-dark); background-color: var(--isa-bg-screen); color: var(--isa-text-primary); outline: none;">
+                        </div>
+                        
+                        <div class="border-box flex-col gap-sm" style="margin-top: var(--isa-space-sm);">
+                            <span class="data-label">DERIVATIVE (Kd)</span>
+                            <input type="number" value="0.10" step="0.01" style="width: 100%; padding: 6px; font-family: 'Courier New', Courier, monospace; font-size: var(--isa-font-size-lg); font-weight: bold; border: 1px solid var(--isa-border-dark); background-color: var(--isa-bg-screen); color: var(--isa-text-primary); outline: none;">
+                        </div>
+
+                        <div class="flex-col gap-sm" style="margin-top: var(--isa-space-xl);">
+                            <button class="isa-btn isa-btn-primary" style="width: 100%; height: 40px;">APPLY PARAMETERS</button>
+                            <button class="isa-btn" style="width: 100%; height: 40px;">AUTO-TUNE (Z-N)</button>
+                            <button class="isa-btn" style="width: 100%; height: 40px; background-color: var(--isa-bg-disabled); color: var(--isa-text-secondary); cursor: not-allowed;">REVERT TO SAVED</button>
+                        </div>
+                        
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Centralized Enterprise Architecture Scripts -->
+    <script src="../../js/firebase-config.js"></script>
+    <script src="../../js/auth-manager.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            // 1. MODULAR SECURITY ENFORCEMENT
+            window.enforceClearance('operator', '../../op-auth-blr-x7a9.html');
+
+            // Flat Red E-STOP acts as emergency logout
+            const btnEstop = document.getElementById('btn-global-estop');
+            if (btnEstop) {
+                btnEstop.addEventListener('click', function() {
+                    btnEstop.innerText = "HALTING...";
+                    btnEstop.style.backgroundColor = "#c53030";
+                    window.secureLogout('../../op-auth-blr-x7a9.html');
+                });
+            }
+
+            // 2. STRICT ISA-101 TUNING CHART (CHART.JS)
+            const canvasElement = document.getElementById('pidTuningChart');
+            let pidLiveChart = null;
+            const maxDataPoints = 120; // 120 seconds rolling window for tuning
+            
+            const targetSP = 2.00;
+            let chartDataPV = Array(maxDataPoints).fill(targetSP);
+            let chartDataSP = Array(maxDataPoints).fill(targetSP);
+            let chartLabels = Array(maxDataPoints).fill('');
+
+            if (canvasElement) {
+                const ctx = canvasElement.getContext('2d');
+                
+                pidLiveChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: chartLabels,
+                        datasets: [
+                            {
+                                label: 'Process Variable (PV)',
+                                data: chartDataPV,
+                                borderColor: '#111111', // Flat dark charcoal line
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                pointHoverRadius: 0,
+                                fill: false,
+                                tension: 0 // Absolute zero smoothing
+                            },
+                            {
+                                label: 'Setpoint (SP)',
+                                data: chartDataSP,
+                                borderColor: '#2c5282', // Muted blue ISA normal state line
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                pointRadius: 0,
+                                pointHoverRadius: 0,
+                                fill: false,
+                                tension: 0 
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 0 
+                        },
+                        scales: {
+                            x: {
+                                display: true,
+                                grid: {
+                                    display: true,
+                                    drawBorder: true,
+                                    borderColor: '#111111',
+                                    color: '#e0e4e7'
+                                },
+                                ticks: { display: false }
+                            },
+                            y: {
+                                display: true,
+                                min: 1.0,
+                                max: 3.0,
+                                grid: {
+                                    display: true,
+                                    drawBorder: true,
+                                    borderColor: '#111111',
+                                    color: '#e0e4e7'
+                                },
+                                ticks: {
+                                    color: '#111111',
+                                    font: { family: 'Courier New, Courier, monospace', size: 12 },
+                                    stepSize: 0.5
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: { 
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    color: '#111111',
+                                    font: { family: 'Arial, Helvetica, sans-serif', size: 12, weight: 'bold' },
+                                    boxWidth: 12
+                                }
+                            },
+                            tooltip: { enabled: false }
+                        },
+                        layout: {
+                            padding: { left: 10, right: 10, top: 10, bottom: 10 }
+                        }
+                    }
+                });
+            }
+
+            // 3. PID TUNING SIMULATION
+            let simPV = 2.14;
+            let simCV = 65.2;
+            let errorAccumulator = 0;
+            
+            const elPV = document.getElementById('pid-pv');
+            const elCV = document.getElementById('pid-cv');
+            const barCV = document.getElementById('bar-pid-cv');
+
+            setInterval(function() {
+                // Simulate oscillating tuning process around SP
+                const error = targetSP - simPV;
+                errorAccumulator += error * 0.05;
+                
+                // Add mechanical delay and process noise
+                simPV = simPV + (error * 0.1) + errorAccumulator + (Math.random() * 0.06 - 0.03);
+                
+                // Clamp PV visually for sanity
+                simPV = Math.max(1.0, Math.min(3.0, simPV));
+                
+                // Simulate CV output reacting to the error
+                simCV = 50 + (error * -40);
+                simCV = Math.max(0.0, Math.min(100.0, simCV));
+
+                if (elPV) elPV.innerText = simPV.toFixed(2);
+                if (elCV) elCV.innerText = simCV.toFixed(1);
+                if (barCV) barCV.style.width = simCV.toFixed(1) + '%';
+
+                if (pidLiveChart) {
+                    chartDataPV.push(parseFloat(simPV.toFixed(2)));
+                    chartDataPV.shift(); 
+                    
+                    chartDataSP.push(targetSP);
+                    chartDataSP.shift();
+                    
+                    pidLiveChart.update();
+                }
+                
+            }, 1000);
+
+        });
+    </script>
+</body>
+</html>

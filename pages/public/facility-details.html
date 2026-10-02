@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facility Water Quality Report | Public Transparency Portal</title>
+
+    <!-- Firebase v8 CDN Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* OFFICIAL GOVERNMENT PORTAL THEME */
+        :root {
+            --bg-cream: #f8f9fa;
+            --bg-white: #ffffff;
+            --primary-deep: #0f172a;
+            --primary-blue: #1e3a8a;
+            --primary-hover: #1d4ed8;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --border-light: #e2e8f0;
+            --success: #10b981;
+            --success-bg: #d1fae5;
+            --alert: #ef4444;
+            --alert-bg: #fee2e2;
+            --alarm-yellow: #f59e0b;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            --font-main: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-cream);
+            color: var(--text-dark);
+            font-family: var(--font-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* HEADER & NAVIGATION */
+        .official-header {
+            background-color: var(--primary-deep);
+            color: var(--bg-white);
+            padding: 1rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .mock-logo {
+            width: 48px;
+            height: 48px;
+            background-color: var(--bg-white);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: var(--primary-blue);
+            font-size: 1.2rem;
+            box-shadow: 0 0 10px rgba(255,255,255,0.2);
+        }
+
+        .brand-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            line-height: 1.2;
+        }
+
+        .brand-subtitle {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--bg-white);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: #60a5fa;
+        }
+
+        .lang-toggle {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        /* TITLE BAND */
+        .title-band {
+            background-color: var(--bg-white);
+            border-bottom: 1px solid var(--border-light);
+            padding: 2rem 5%;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .title-left h1 {
+            font-size: 2rem;
+            color: var(--primary-deep);
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .title-left p {
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.9rem;
+        }
+
+        .title-right {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border-radius: var(--radius-md);
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border: none;
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-secondary {
+            background: var(--bg-white);
+            color: var(--text-dark);
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-cream);
+            border-color: #cbd5e1;
+        }
+
+        .btn-alarm {
+            background-color: var(--alarm-yellow);
+            color: #111111;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+        }
+
+        .btn-alarm:hover {
+            background-color: #d97706;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-blue);
+            color: var(--bg-white);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* MAIN DASHBOARD LAYOUT */
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: 30% 1fr;
+            gap: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 2.5rem 5%;
+            flex-grow: 1;
+        }
+
+        /* LEFT COLUMN */
+        .left-col {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .profile-card {
+            background: var(--bg-white);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-light);
+            border-top: 4px solid var(--primary-blue);
+        }
+
+        .profile-header {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary-deep);
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--bg-cream);
+            padding-bottom: 0.75rem;
+        }
+
+        .profile-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .profile-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .profile-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .profile-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        /* RIGHT COLUMN */
+        .right-col {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        .metric-card {
+            background: var(--bg-white);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .metric-header {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 1rem;
+        }
+
+        .metric-value-row {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .metric-val {
+            font-size: 2.8rem;
+            font-weight: 800;
+            color: var(--primary-deep);
+            font-family: 'Courier New', Courier, monospace;
+            line-height: 1;
+        }
+
+        .metric-unit {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .metric-footer {
+            margin-top: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .metric-limit {
+            font-size: 0.8rem;
+            color: var(--text-dark);
+            font-weight: 600;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .limit-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .badge-compliant {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--success-bg);
+            color: var(--success);
+            padding: 0.4rem 0.8rem;
+            border-radius: var(--radius-md);
+            font-size: 0.75rem;
+            font-weight: 800;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            text-transform: uppercase;
+        }
+
+        /* CHART CARD */
+        .chart-card {
+            background: var(--bg-white);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .chart-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary-deep);
+        }
+
+        .chart-select {
+            padding: 0.5rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            font-family: var(--font-main);
+            color: var(--text-dark);
+            outline: none;
+        }
+
+        .canvas-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        /* LEDGER TABLE */
+        .ledger-card {
+            background: var(--bg-white);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            overflow-x: auto;
+        }
+
+        .ledger-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary-deep);
+            margin-bottom: 1rem;
+        }
+
+        .official-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.95rem;
+        }
+
+        .official-table th, .official-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .official-table th {
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            background-color: var(--bg-cream);
+        }
+
+        .official-table td {
+            color: var(--text-dark);
+        }
+
+        /* MODAL STYLING */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0; top: 0; right: 0; bottom: 0;
+            background-color: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(4px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: var(--bg-white);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 500px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+
+        .modal-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 2rem;
+            color: var(--primary-deep);
+            border-bottom: 2px solid var(--bg-cream);
+            padding-bottom: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .form-control {
+            background-color: var(--bg-cream);
+            border: 1px solid var(--border-light);
+            color: var(--text-dark);
+            padding: 0.85rem 1rem;
+            border-radius: var(--radius-md);
+            font-family: var(--font-main);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-blue);
+            background-color: var(--bg-white);
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        /* FOOTER */
+        .official-footer {
+            margin-top: auto;
+            background-color: var(--primary-deep);
+            color: #94a3b8;
+            padding: 3rem 5%;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .footer-title {
+            color: var(--bg-white);
+            font-weight: 600;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .footer-links {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .footer-links a {
+            color: #94a3b8;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: var(--bg-white);
+        }
+
+        .footer-bottom {
+            text-align: center;
+            font-size: 0.85rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .dashboard-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        @media (max-width: 768px) {
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+            .title-band {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .footer-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- OFFICIAL HEADER -->
+    <header class="official-header">
+        <div class="brand-container">
+            <div class="mock-logo">ECO</div>
+            <div>
+                <div class="brand-title">PUBLIC ENVIRONMENTAL TRANSPARENCY PORTAL</div>
+                <div class="brand-subtitle">Department of Public Health</div>
+            </div>
+        </div>
+        <nav class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="#">About SBR Technology</a>
+            <a href="#">Compliance Standards</a>
+            <button class="lang-toggle">EN / ES</button>
+        </nav>
+    </header>
+
+    <!-- TITLE BAND -->
+    <section class="title-band">
+        <div class="title-left">
+            <h1 id="display-facility-id">LOADING...</h1>
+            <p>Live Effluent Quality Report</p>
+        </div>
+        <div class="title-right">
+            <a href="index.html" class="btn btn-secondary">BACK TO DIRECTORY</a>
+            <button id="btn-open-modal" class="btn btn-alarm">Report Environmental Concern</button>
+        </div>
+    </section>
+
+    <!-- MAIN DASHBOARD -->
+    <main class="dashboard-layout">
+        
+        <!-- LEFT COLUMN: PROFILE -->
+        <aside class="left-col">
+            <div class="profile-card">
+                <h3 class="profile-header">Facility Metadata</h3>
+                <ul class="profile-list">
+                    <li class="profile-item">
+                        <span class="profile-label">Location / District</span>
+                        <span class="profile-value">Metro Region, Sector 4</span>
+                    </li>
+                    <li class="profile-item">
+                        <span class="profile-label">Max Capacity</span>
+                        <span class="profile-value">120,000 L/Day</span>
+                    </li>
+                    <li class="profile-item">
+                        <span class="profile-label">Current Operational Phase</span>
+                        <span class="profile-value">AERATION / REACT</span>
+                    </li>
+                    <li class="profile-item">
+                        <span class="profile-label">Last Maintenance Date</span>
+                        <span class="profile-value">2026-08-22</span>
+                    </li>
+                </ul>
+                <button class="btn btn-secondary btn-full" onclick="alert('Downloading Official PDF Report...')">Download Official PDF Report</button>
+            </div>
+        </aside>
+
+        <!-- RIGHT COLUMN: TELEMETRY & ANALYTICS -->
+        <section class="right-col">
+            
+            <!-- ROW 1: KPIs -->
+            <div class="kpi-grid">
+                <!-- KPI CARD: pH Level -->
+                <div class="metric-card">
+                    <div class="metric-header">pH Level</div>
+                    <div class="metric-value-row">
+                        <span class="metric-val" id="val-ph">7.24</span>
+                        <span class="metric-unit">pH</span>
+                    </div>
+                    <div class="metric-footer">
+                        <div class="metric-limit">
+                            <span class="limit-label">Official Limit</span>
+                            <span>6.5 - 8.5</span>
+                        </div>
+                        <div class="badge-compliant">✓ COMPLIANT</div>
+                    </div>
+                </div>
+
+                <!-- KPI CARD: Turbidity (TSS) -->
+                <div class="metric-card">
+                    <div class="metric-header">Turbidity (TSS)</div>
+                    <div class="metric-value-row">
+                        <span class="metric-val" id="val-tss">18.5</span>
+                        <span class="metric-unit">NTU</span>
+                    </div>
+                    <div class="metric-footer">
+                        <div class="metric-limit">
+                            <span class="limit-label">Official Limit</span>
+                            <span>&lt; 100 NTU</span>
+                        </div>
+                        <div class="badge-compliant">✓ COMPLIANT</div>
+                    </div>
+                </div>
+
+                <!-- KPI CARD: BOD -->
+                <div class="metric-card">
+                    <div class="metric-header">Biochemical Oxygen Demand</div>
+                    <div class="metric-value-row">
+                        <span class="metric-val" id="val-bod">12.1</span>
+                        <span class="metric-unit">mg/L</span>
+                    </div>
+                    <div class="metric-footer">
+                        <div class="metric-limit">
+                            <span class="limit-label">Official Limit</span>
+                            <span>&lt; 30 mg/L</span>
+                        </div>
+                        <div class="badge-compliant">✓ COMPLIANT</div>
+                    </div>
+                </div>
+
+                <!-- KPI CARD: COD -->
+                <div class="metric-card">
+                    <div class="metric-header">Chemical Oxygen Demand</div>
+                    <div class="metric-value-row">
+                        <span class="metric-val" id="val-cod">110.0</span>
+                        <span class="metric-unit">mg/L</span>
+                    </div>
+                    <div class="metric-footer">
+                        <div class="metric-limit">
+                            <span class="limit-label">Official Limit</span>
+                            <span>&lt; 250 mg/L</span>
+                        </div>
+                        <div class="badge-compliant">✓ COMPLIANT</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 2: HISTORICAL TREND CHART -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <span class="chart-title">Historical Telemetry</span>
+                    <select id="chart-toggle" class="chart-select">
+                        <option value="ph">7-Day pH Trend</option>
+                        <option value="turbidity">7-Day Turbidity Trend</option>
+                    </select>
+                </div>
+                <div class="canvas-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
+            <!-- ROW 3: INSPECTION LEDGER -->
+            <div class="ledger-card">
+                <h3 class="ledger-title">Recent Compliance Audits</h3>
+                <table class="official-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Auditor ID</th>
+                            <th>Parameter Checked</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>2026-09-10</td>
+                            <td>AUD-9942</td>
+                            <td>Full Spectrum (pH, TSS, BOD, COD)</td>
+                            <td><span style="color: var(--success); font-weight: bold;">PASS</span></td>
+                        </tr>
+                        <tr>
+                            <td>2026-08-25</td>
+                            <td>AUD-8810</td>
+                            <td>Discharge Turbidity (TSS)</td>
+                            <td><span style="color: var(--success); font-weight: bold;">PASS</span></td>
+                        </tr>
+                        <tr>
+                            <td>2026-08-11</td>
+                            <td>AUD-9942</td>
+                            <td>System Calibration Check</td>
+                            <td><span style="color: var(--success); font-weight: bold;">PASS</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- OFFICIAL FOOTER -->
+    <footer class="official-footer">
+        <div class="footer-grid">
+            <div>
+                <h4 class="footer-title">Contact Us</h4>
+                <p>National Environmental Authority Helpline: 1800-XXX-XXXX</p>
+                <p>Email: transparency@nea.gov.in</p>
+                <p>Central District, Metro Region</p>
+            </div>
+            <div>
+                <h4 class="footer-title">Quick Links</h4>
+                <ul class="footer-links">
+                    <li><a href="#">National Environmental Authority</a></li>
+                    <li><a href="#">Water Act Guidelines</a></li>
+                    <li><a href="#">Public Grievance Portal</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="footer-title">Disclaimer</h4>
+                <p style="font-size: 0.85rem; line-height: 1.5;">Data provided on this portal is collected in real-time from automated SCADA sensors. Occasional latency may occur. For legal compliance certifications, please refer to official laboratory audit reports.</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            &copy; 2026 National Environmental Authority - Environmental Transparency Initiative. All Rights Reserved.
+        </div>
+    </footer>
+
+    <!-- PUBLIC COMPLAINT MODAL -->
+    <div class="modal-overlay" id="complaint-modal">
+        <div class="modal-content">
+            <div class="modal-title">Log Environmental Concern</div>
+            
+            <div class="form-group">
+                <label>Issue Type</label>
+                <select class="form-control" id="cmp-type">
+                    <option value="Odor">Severe Odor</option>
+                    <option value="Noise">Excessive Equipment Noise</option>
+                    <option value="Discharge Color">Abnormal Discharge Color</option>
+                    <option value="Overflow">Tank Overflow / Leakage</option>
+                    <option value="Other">Other / General Concern</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Description</label>
+                <textarea class="form-control" id="cmp-desc" placeholder="Please provide specific details about the issue..."></textarea>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="btn-cancel-modal">Cancel</button>
+                <button class="btn btn-primary" id="btn-submit-modal">Submit Report</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Config Script -->
+    <script src="../../js/firebase-config.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            // 1. PARSE URL PARAMETERS
+            const urlParams = new URLSearchParams(window.location.search);
+            let facilityId = urlParams.get('id') || "UNKNOWN-FACILITY";
+            
+            document.getElementById('display-facility-id').innerText = facilityId;
+
+            // 2. SIMULATE SLIGHT LIVE FLUCTUATIONS FOR IMMERSION
+            let currentPh = 7.24;
+            let currentTss = 18.5;
+            let currentBod = 12.1;
+            let currentCod = 110.0;
+
+            setInterval(() => {
+                currentPh = Math.max(6.5, Math.min(8.5, currentPh + (Math.random() * 0.04 - 0.02)));
+                currentTss = Math.max(10, currentTss + (Math.random() * 1.0 - 0.5));
+                
+                document.getElementById('val-ph').innerText = currentPh.toFixed(2);
+                document.getElementById('val-tss').innerText = currentTss.toFixed(1);
+            }, 3000);
+
+            // 3. CHART.JS INITIALIZATION
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const dataPH = [7.1, 7.3, 7.2, 7.4, 7.2, 7.5, 7.3];
+            const dataTurbidity = [22, 18, 19, 15, 20, 17, 18];
+
+            let trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'pH Level',
+                        data: dataPH,
+                        borderColor: '#1e3a8a',
+                        backgroundColor: 'rgba(30, 58, 138, 0.1)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: '#1e3a8a',
+                        pointRadius: 4,
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            min: 6.0,
+                            max: 9.0,
+                            grid: { color: '#e2e8f0' },
+                            ticks: { color: '#64748b' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#64748b' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            // Toggle Chart Logic
+            document.getElementById('chart-toggle').addEventListener('change', function(e) {
+                if (e.target.value === 'ph') {
+                    trendChart.data.datasets[0].label = 'pH Level';
+                    trendChart.data.datasets[0].data = dataPH;
+                    trendChart.data.datasets[0].borderColor = '#1e3a8a';
+                    trendChart.data.datasets[0].pointBorderColor = '#1e3a8a';
+                    trendChart.data.datasets[0].backgroundColor = 'rgba(30, 58, 138, 0.1)';
+                    trendChart.options.scales.y.min = 6.0;
+                    trendChart.options.scales.y.max = 9.0;
+                } else {
+                    trendChart.data.datasets[0].label = 'Turbidity (NTU)';
+                    trendChart.data.datasets[0].data = dataTurbidity;
+                    trendChart.data.datasets[0].borderColor = '#0f172a';
+                    trendChart.data.datasets[0].pointBorderColor = '#0f172a';
+                    trendChart.data.datasets[0].backgroundColor = 'rgba(15, 23, 42, 0.1)';
+                    trendChart.options.scales.y.min = 0;
+                    trendChart.options.scales.y.max = 50;
+                }
+                trendChart.update();
+            });
+
+            // 4. PUBLIC COMPLAINT PORTAL LOGIC
+            const modal = document.getElementById('complaint-modal');
+            const btnOpen = document.getElementById('btn-open-modal');
+            const btnCancel = document.getElementById('btn-cancel-modal');
+            const btnSubmit = document.getElementById('btn-submit-modal');
+            
+            const selType = document.getElementById('cmp-type');
+            const txtDesc = document.getElementById('cmp-desc');
+
+            // Open Modal
+            btnOpen.addEventListener('click', () => {
+                modal.style.display = 'flex';
+            });
+
+            // Close Modal
+            btnCancel.addEventListener('click', () => {
+                modal.style.display = 'none';
+                txtDesc.value = '';
+                selType.selectedIndex = 0;
+            });
+
+            // Submit Complaint
+            btnSubmit.addEventListener('click', () => {
+                const descVal = txtDesc.value.trim();
+                
+                if (!descVal) {
+                    alert("Please provide a description of the environmental concern.");
+                    return;
+                }
+
+                const originalText = btnSubmit.innerText;
+                btnSubmit.innerText = 'SUBMITTING...';
+                btnSubmit.disabled = true;
+
+                const payload = {
+                    facilityId: facilityId,
+                    issueType: selType.value,
+                    description: descVal,
+                    timestamp: new Date().toISOString(),
+                    status: "UNVERIFIED"
+                };
+
+                // Push to Firebase Realtime Database
+                if (window.sbrDb) {
+                    window.sbrDb.ref('complaints').push(payload)
+                        .then(() => {
+                            modal.style.display = 'none';
+                            alert("Concern logged successfully. Ticket forwarded to the National Environmental Authority for verification.");
+                            txtDesc.value = '';
+                            selType.selectedIndex = 0;
+                        })
+                        .catch((err) => {
+                            console.error("Firebase Error:", err);
+                            alert("Failed to submit ticket. Please check your connection.");
+                        })
+                        .finally(() => {
+                            btnSubmit.innerText = originalText;
+                            btnSubmit.disabled = false;
+                        });
+                } else {
+                    // Fallback if Firebase is not properly initialized
+                    console.warn("Firebase not initialized. Logging payload locally:", payload);
+                    alert("Concern logged successfully. Ticket forwarded to the National Environmental Authority for verification.");
+                    modal.style.display = 'none';
+                    txtDesc.value = '';
+                    btnSubmit.innerText = originalText;
+                    btnSubmit.disabled = false;
+                }
+            });
+
+        });
+    </script>
+</body>
+</html>

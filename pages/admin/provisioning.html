@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Official Hardware Registry // Diplomatic Portal</title>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        :root {
+            --bg-white: #ffffff;
+            --bg-cream: #f8f9fa;
+            --primary-navy: #0f172a;
+            --border-light: #e2e8f0;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --accent-blue: #2563eb;
+            --accent-red: #c83232;
+            --font-main: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            border-radius: 0 !important;
+        }
+
+        body {
+            background-color: var(--bg-white);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .registry-container {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .registry-header {
+            border-bottom: 3px solid var(--primary-navy);
+            padding-bottom: 20px;
+            text-align: center;
+        }
+
+        .registry-header h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--primary-navy);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .registry-header p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .registry-card {
+            background-color: var(--bg-cream);
+            border: 1px solid var(--border-light);
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .section-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--primary-navy);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border-light);
+            padding-bottom: 8px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-control {
+            background-color: var(--bg-white);
+            border: 1px solid var(--border-light);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            font-size: 1rem;
+            padding: 12px 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .form-control.mono {
+            font-family: var(--font-mono);
+        }
+
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            background-color: var(--bg-white);
+            border: 1px solid var(--border-light);
+            padding: 16px;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-main);
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary-navy);
+            cursor: pointer;
+        }
+
+        .btn {
+            background-color: var(--primary-navy);
+            color: var(--bg-white);
+            border: 1px solid var(--primary-navy);
+            padding: 14px 24px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn:hover:not(:disabled) {
+            background-color: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        .btn:disabled {
+            background-color: var(--text-muted);
+            border-color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        .pdf-offscreen-container {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+        }
+
+        .pdf-template {
+            width: 800px;
+            background-color: #ffffff;
+            color: #0f172a;
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            padding: 40px;
+            box-sizing: border-box;
+        }
+
+        .pdf-header {
+            text-align: center;
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .pdf-header h2 {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+        }
+
+        .pdf-header h3 {
+            font-size: 16px;
+            font-weight: normal;
+            color: #475569;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .pdf-section-title {
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            color: #0f172a;
+        }
+
+        .pdf-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+
+        .pdf-table th, .pdf-table td {
+            border: 1px solid #cbd5e1;
+            padding: 12px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .pdf-table th {
+            width: 35%;
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #0f172a;
+        }
+
+        .pdf-credentials-box {
+            border: 2px solid #0f172a;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            background-color: #f8f9fa;
+        }
+
+        .pdf-cred-row {
+            margin: 10px 0;
+            font-size: 18px;
+        }
+
+        .pdf-cred-label {
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        .pdf-cred-value-id {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 22px;
+            color: #0f172a;
+        }
+
+        .pdf-cred-value-pin {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 22px;
+            color: #c83232;
+        }
+
+        .pdf-instructions {
+            margin-top: 20px;
+        }
+        
+        .pdf-instructions ol {
+            padding-left: 20px;
+            margin-top: 10px;
+        }
+
+        .pdf-instructions li {
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #334155;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="registry-container">
+        <header class="registry-header">
+            <h1>Official Government Hardware Registry</h1>
+            <p>Diplomatic Environmental Telemetry Authority</p>
+        </header>
+
+        <div id="data-entry-card" class="registry-card">
+            <div class="form-group">
+                <div class="section-title">I. Hardware Identification</div>
+                <label style="margin-top: 12px;">Hardware MAC Address</label>
+                <input type="text" id="mac-address" class="form-control mono" value="00:1B:44:11:3A:B7">
+            </div>
+
+            <div class="form-group">
+                <div class="section-title">II. Deployment Target</div>
+                <label style="margin-top: 12px;">Assigned Facility Node</label>
+                <input type="text" id="facility-node" class="form-control" placeholder="e.g., Whitefield Pilot Node">
+            </div>
+
+            <div class="form-group">
+                <div class="section-title">III. Sensor Array Configuration</div>
+                <div class="sensor-grid" style="margin-top: 12px;">
+                    <label class="checkbox-label"><input type="checkbox" class="sensor-cb" value="pH" checked> pH Probe</label>
+                    <label class="checkbox-label"><input type="checkbox" class="sensor-cb" value="Turbidity" checked> Turbidity (TSS)</label>
+                    <label class="checkbox-label"><input type="checkbox" class="sensor-cb" value="TDS" checked> TDS Meter</label>
+                    <label class="checkbox-label"><input type="checkbox" class="sensor-cb" value="Temperature" checked> Temperature</label>
+                    <label class="checkbox-label"><input type="checkbox" class="sensor-cb" value="Ultrasonic" checked> Ultrasonic Level</label>
+                    <label class="checkbox-label"><input type="checkbox" class="sensor-cb" value="Flow" checked> Inline Flow Meter</label>
+                </div>
+            </div>
+
+            <button id="btn-generate" class="btn">GENERATE & DOWNLOAD</button>
+        </div>
+    </div>
+
+    <div class="pdf-offscreen-container">
+        <div id="pdf-template" class="pdf-template">
+            <div class="pdf-header">
+                <h2>Hardware Provisioning Certificate</h2>
+                <h3>Diplomatic Environmental Authority</h3>
+            </div>
+
+            <div class="pdf-section-title">1. Document Control Metadata</div>
+            <table class="pdf-table">
+                <tr>
+                    <th>Timestamp</th>
+                    <td id="cert-timestamp"></td>
+                </tr>
+                <tr>
+                    <th>Issuer</th>
+                    <td>Diplomatic Environmental Authority (DEA)</td>
+                </tr>
+                <tr>
+                    <th>Security Clearance</th>
+                    <td>Level 2 - Restricted</td>
+                </tr>
+            </table>
+
+            <div class="pdf-section-title">2. Deployment Target & Identity</div>
+            <table class="pdf-table">
+                <tr>
+                    <th>Facility Node</th>
+                    <td id="cert-facility" style="font-weight: bold;"></td>
+                </tr>
+                <tr>
+                    <th>Hardware MAC Address</th>
+                    <td id="cert-mac" style="font-family: 'Courier New', Courier, monospace;"></td>
+                </tr>
+            </table>
+
+            <div class="pdf-section-title">3. Hardware Specifications</div>
+            <table class="pdf-table">
+                <tr>
+                    <th>Target Volume</th>
+                    <td>5-Liter Sequencing Batch Reactor</td>
+                </tr>
+                <tr>
+                    <th>Firmware Target</th>
+                    <td>ESP32-WROOM-32 SCADA v2.4</td>
+                </tr>
+                <tr>
+                    <th>Active Sensor Array</th>
+                    <td>pH, Turbidity, TDS, Temperature, Ultrasonic, Flow (CALIBRATED)</td>
+                </tr>
+            </table>
+
+            <div class="pdf-section-title">4. Secure Operational Credentials</div>
+            <div class="pdf-credentials-box">
+                <div class="pdf-cred-row">
+                    <span class="pdf-cred-label">DEVICE ID:</span>
+                    <span class="pdf-cred-value-id" id="cert-id"></span>
+                </div>
+                <div class="pdf-cred-row" style="margin-top: 15px;">
+                    <span class="pdf-cred-label">AUTH PIN:</span>
+                    <span class="pdf-cred-value-pin" id="cert-pin"></span>
+                </div>
+            </div>
+
+            <div class="pdf-instructions">
+                <div class="pdf-section-title">5. Operator Instructions</div>
+                <ol>
+                    <li>Power cycle the target hardware unit in the field.</li>
+                    <li>Input the assigned <strong>Device ID</strong> and <strong>Auth PIN</strong> into the secure Operator Terminal.</li>
+                    <li>Verify handshake status upon telemetry stream activation.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let db = null;
+        
+        try {
+            const firebaseConfig = {
+                apiKey: "AIzaSyA_cflBLHqk7L46KZ8mAy7RKYm995DU3vc",
+                authDomain: "sbr-scada-platform.firebaseapp.com",
+                databaseURL: "https://sbr-scada-platform-default-rtdb.asia-southeast1.firebasedatabase.app",
+                projectId: "sbr-scada-platform",
+                storageBucket: "sbr-scada-platform.firebasestorage.app",
+                messagingSenderId: "1010717791850",
+                appId: "1:1010717791850:web:9e0d872b95df14b8ad5c13"
+            };
+
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            db = firebase.database();
+        } catch (error) {
+            console.error("Firebase Initialization Error:", error);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            const btnGenerate = document.getElementById('btn-generate');
+            const inputMac = document.getElementById('mac-address');
+            const inputFacility = document.getElementById('facility-node');
+            const sensorCbs = document.querySelectorAll('.sensor-cb');
+
+            function generateRandomString(length, chars) {
+                let result = '';
+                for (let i = 0; i < length; i++) {
+                    result += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                return result;
+            }
+
+            btnGenerate.addEventListener('click', async function() {
+                const macValue = inputMac.value.trim();
+                const facilityValue = inputFacility.value.trim();
+                
+                if (!macValue || !facilityValue) {
+                    alert("Validation Error: Hardware MAC Address and Assigned Facility are required.");
+                    return;
+                }
+
+                const originalText = btnGenerate.innerText;
+                btnGenerate.innerText = "GENERATING DOCUMENT...";
+                btnGenerate.disabled = true;
+
+                const alphanumeric = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                const newId = 'SBR-ESP-' + generateRandomString(4, alphanumeric);
+                const digits = '0123456789';
+                const newPin = generateRandomString(4, digits);
+                const timestamp = new Date().toISOString();
+
+                const activeSensors = [];
+                sensorCbs.forEach(cb => {
+                    if (cb.checked) activeSensors.push(cb.value);
+                });
+
+                const payload = {
+                    pin: newPin,
+                    macAddress: macValue,
+                    facilityNode: facilityValue,
+                    activeSensors: activeSensors,
+                    status: 'unpaired',
+                    created: Date.now()
+                };
+
+                try {
+                    if (db) {
+                        await db.ref('authorized_hardware/' + newId).set(payload);
+                    } else {
+                        console.warn("Offline Mode: Database sync skipped.");
+                    }
+                } catch (error) {
+                    console.error("Firebase Sync Error:", error);
+                }
+
+                document.getElementById('cert-timestamp').innerText = timestamp;
+                document.getElementById('cert-facility').innerText = facilityValue;
+                document.getElementById('cert-mac').innerText = macValue;
+                document.getElementById('cert-id').innerText = newId;
+                document.getElementById('cert-pin').innerText = newPin;
+
+                const element = document.getElementById('pdf-template');
+                const opt = {
+                    margin:       1,
+                    filename:     'SBR_Certificate.pdf',
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2 },
+                    jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+                };
+
+                html2pdf().set(opt).from(element).save().then(() => {
+                    btnGenerate.innerText = originalText;
+                    btnGenerate.disabled = false;
+                    
+                    inputMac.value = '00:1B:44:11:3A:B7';
+                    inputFacility.value = '';
+                }).catch(err => {
+                    console.error("PDF Generation Error:", err);
+                    alert("An error occurred while generating the PDF.");
+                    btnGenerate.innerText = originalText;
+                    btnGenerate.disabled = false;
+                });
+            });
+        });
+    </script>
+</body>
+</html>

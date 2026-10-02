@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SBR HMI | Compliance Portal</title>
+    <style>
+        /* High-Contrast Corporate Compliance Theme */
+        :root {
+            --bg-corporate: #0f172a;
+            --panel-bg: #ffffff;
+            --border-flat: #e2e8f0;
+            --accent-blue: #2563eb;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --alarm-red: #ef4444;
+            --btn-hover: #1d4ed8;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-corporate);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .login-box {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-flat);
+            padding: 40px;
+            width: 400px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+            border-radius: 6px;
+        }
+
+        .fp-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text-main);
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border-flat);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        .ctrl-row {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+
+        .ctrl-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        .corp-input {
+            background-color: #f8fafc;
+            border: 1px solid var(--border-flat);
+            color: var(--text-main);
+            font-size: 1.1rem;
+            padding: 12px;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            border-radius: 4px;
+        }
+
+        .corp-input:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        
+        .corp-input::placeholder {
+            color: #94a3b8;
+        }
+
+        .corp-btn {
+            background-color: var(--accent-blue);
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            padding: 14px;
+            font-size: 1rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            letter-spacing: 1px;
+            transition: background-color 0.2s ease;
+        }
+
+        .corp-btn:hover {
+            background-color: var(--btn-hover);
+        }
+
+        .corp-btn:disabled {
+            opacity: 0.7;
+            cursor: wait;
+            background-color: #93c5fd;
+        }
+
+        .error-msg {
+            display: none;
+            background-color: #fef2f2;
+            color: var(--alarm-red);
+            border: 1px solid #fecaca;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-box">
+        <div class="fp-title">Compliance Portal</div>
+        
+        <div class="error-msg" id="error-msg"></div>
+
+        <div class="ctrl-row">
+            <label class="ctrl-label" for="aud-id">Auditor ID</label>
+            <input type="text" id="aud-id" class="corp-input" placeholder="AUD-XXXX" autocomplete="off">
+        </div>
+        
+        <div class="ctrl-row">
+            <label class="ctrl-label" for="aud-pass">Secure Password</label>
+            <input type="password" id="aud-pass" class="corp-input" placeholder="••••••••">
+        </div>
+
+        <button class="corp-btn" id="btn-auth" onclick="authenticateAuditor()">Verify & Enter</button>
+    </div>
+
+    <!-- Firebase v8 CDN Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <script>
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_cflBLHqk7L46KZ8mAy7RKYm995DU3vc",
+            authDomain: "sbr-scada-platform.firebaseapp.com",
+            databaseURL: "https://sbr-scada-platform-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "sbr-scada-platform",
+            storageBucket: "sbr-scada-platform.firebasestorage.app",
+            messagingSenderId: "1010717791850",
+            appId: "1:1010717791850:web:9e0d872b95df14b8ad5c13"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        
+        const auth = firebase.auth();
+        const db = firebase.database();
+
+        function showError(msg) {
+            const errDiv = document.getElementById('error-msg');
+            errDiv.innerText = msg;
+            errDiv.style.display = 'block';
+        }
+
+        function authenticateAuditor() {
+            document.getElementById('error-msg').style.display = 'none';
+            
+            let rawAudId = document.getElementById('aud-id').value.trim();
+            const pass = document.getElementById('aud-pass').value;
+            const btn = document.getElementById('btn-auth');
+
+            if (!rawAudId || !pass) {
+                return showError("Auditor ID and Password are required.");
+            }
+
+            // Append dummy domain to satisfy Firebase Auth email format requirement
+            const email = rawAudId + "@sbr.local";
+
+            btn.disabled = true;
+            btn.innerText = "VERIFYING...";
+
+            auth.signInWithEmailAndPassword(email, pass)
+                .then((userCred) => {
+                    return db.ref('users/' + userCred.user.uid).once('value');
+                })
+                .then((snapshot) => {
+                    if (snapshot.exists() && snapshot.val().role === 'auditor') {
+                        // Successfully verified, route to auditor portal
+                        window.location.href = 'auditor.html';
+                    } else {
+                        // User exists but lacks the auditor role
+                        auth.signOut();
+                        showError("Access Denied: Auditor privileges required.");
+                        btn.disabled = false;
+                        btn.innerText = "VERIFY & ENTER";
+                    }
+                })
+                .catch((error) => {
+                    // Handle incorrect password or non-existent user
+                    showError("Verification Failed: Invalid Credentials.");
+                    console.error("Auth Error:", error.code, error.message);
+                    btn.disabled = false;
+                    btn.innerText = "VERIFY & ENTER";
+                });
+        }
+        
+        // Allow pressing "Enter" to trigger login
+        document.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                authenticateAuditor();
+            }
+        });
+    </script>
+</body>
+</html>

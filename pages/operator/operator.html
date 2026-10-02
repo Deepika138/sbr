@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISA-101 High-Performance HMI | SBR Master Control</title>
+
+    <!-- Firebase v8 CDN Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Modular Enterprise Design System -->
+    <link rel="stylesheet" href="css/isa-101-theme.css">
+</head>
+    <style>
+        /* ==========================================================================
+           ANSI/ISA-101.01 HIGH-PERFORMANCE HMI DESIGN SYSTEM
+           Strict compliance: Greyscale backgrounds, flat design, no gradients,
+           no shadows, limited color for status context only.
+           ========================================================================== */
+
+        :root {
+            /* 1. Base Greyscale Palette (ISA-101 Backgrounds) */
+            --isa-bg-screen: #cfd4d8;      /* Primary screen background (muted grey) */
+            --isa-bg-panel: #e0e4e7;       /* Secondary panel background */
+            --isa-bg-faceplate: #ffffff;   /* Pure white for data-dense faceplates */
+            --isa-bg-disabled: #a0a5aa;    /* Disabled or inactive state background */
+            
+            /* 2. Border & Line Colors */
+            --isa-border-light: #b0b5b9;   /* Subtle panel dividers */
+            --isa-border-medium: #7a8084;  /* Standard component borders */
+            --isa-border-dark: #4a4e51;    /* Emphasized borders, outlines */
+            --isa-border-focus: #2c5282;   /* Focus state outline */
+
+            /* 3. Typography Palette */
+            --isa-text-primary: #111111;   /* High contrast standard text */
+            --isa-text-secondary: #333333; /* Subtitles and labels */
+            --isa-text-muted: #555555;     /* Units of measure, disabled text */
+            --isa-text-inverse: #ffffff;   /* Text on dark backgrounds (alarms) */
+
+            /* 4. Action & State Palette (Strict Context) */
+            --isa-state-normal: #2c5282;   /* Muted blue for running/normal states */
+            --isa-state-stopped: #666666;  /* Dark grey for stopped/inactive states */
+            --isa-state-transition: #a0a5aa; /* Intermediate transitions */
+            
+            /* 5. Alarm Palette (Strict Hierarchical Colors) */
+            --isa-alarm-l1: #e53e3e;       /* Priority 1: Critical (Red) */
+            --isa-alarm-l2: #ecc94b;       /* Priority 2: High (Yellow) */
+            --isa-alarm-l3: #ed8936;       /* Priority 3: Medium (Orange) */
+            --isa-alarm-l4: #4299e1;       /* Priority 4: Low/Diag (Bright Blue) */
+
+            /* 6. Dimensions & Spacing */
+            --isa-space-xs: 4px;
+            --isa-space-sm: 8px;
+            --isa-space-md: 12px;
+            --isa-space-lg: 16px;
+            --isa-space-xl: 24px;
+            
+            --isa-font-family: Arial, Helvetica, sans-serif;
+            --isa-font-size-xs: 10px;
+            --isa-font-size-sm: 12px;
+            --isa-font-size-md: 14px;
+            --isa-font-size-lg: 18px;
+            --isa-font-size-xl: 24px;
+        }
+
+        /* ==========================================================================
+           RESET & GLOBAL STYLES
+           ========================================================================== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            background-color: var(--isa-bg-screen);
+            color: var(--isa-text-primary);
+            font-family: var(--isa-font-family);
+            font-size: var(--isa-font-size-md);
+            line-height: 1.4;
+            display: flex;
+            flex-direction: column;
+            user-select: none; /* Prevent accidental text selection by operators */
+        }
+
+        /* Flat, high-contrast scrollbars */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--isa-bg-screen);
+            border-left: 1px solid var(--isa-border-medium);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--isa-border-medium);
+            border: 1px solid var(--isa-border-dark);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--isa-border-dark);
+        }
+
+        /* ==========================================================================
+           LAYOUT ARCHITECTURE
+           ========================================================================== */
+        .app-layout {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+        }
+
+        .hmi-workspace {
+            flex-grow: 1;
+            padding: var(--isa-space-sm);
+            display: grid;
+            gap: var(--isa-space-sm);
+            overflow: hidden;
+            /* Dense grid structure to be utilized in Part 2 */
+            grid-template-columns: minmax(300px, 1fr) minmax(400px, 1.5fr) minmax(300px, 1fr);
+            grid-template-rows: 1fr;
+            background-color: var(--isa-bg-screen);
+        }
+
+        /* ==========================================================================
+           HEADER & NAVIGATION (ISA-101 COMPLIANT)
+           ========================================================================== */
+        .isa-header {
+            background-color: var(--isa-bg-panel);
+            border-bottom: 2px solid var(--isa-border-dark);
+            height: 56px;
+            display: flex;
+            justify-content: space-between;
+            align-items: stretch;
+            padding: 0 var(--isa-space-lg);
+            flex-shrink: 0;
+        }
+
+        .header-section {
+            display: flex;
+            align-items: center;
+            gap: var(--isa-space-xl);
+        }
+
+        .header-brand {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border-right: 1px solid var(--isa-border-medium);
+            padding-right: var(--isa-space-lg);
+        }
+
+        .header-brand-title {
+            font-size: var(--isa-font-size-lg);
+            font-weight: bold;
+            color: var(--isa-text-primary);
+            text-transform: uppercase;
+            line-height: 1.1;
+        }
+
+        .header-brand-sub {
+            font-size: var(--isa-font-size-sm);
+            color: var(--isa-text-secondary);
+        }
+
+        .header-data-block {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .header-data-label {
+            font-size: var(--isa-font-size-xs);
+            color: var(--isa-text-secondary);
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .header-data-value {
+            font-size: var(--isa-font-size-md);
+            font-weight: bold;
+            color: var(--isa-text-primary);
+        }
+
+        /* Strict PLC Status Box - No glowing LEDs */
+        .plc-status-box {
+            display: flex;
+            align-items: center;
+            gap: var(--isa-space-sm);
+            padding: 4px 8px;
+            background-color: var(--isa-bg-faceplate);
+            border: 1px solid var(--isa-border-medium);
+        }
+        
+        .plc-status-indicator {
+            width: 12px;
+            height: 12px;
+            background-color: var(--isa-state-normal);
+            border: 1px solid var(--isa-border-dark);
+        }
+
+        /* Navigation Tabs */
+        .isa-nav {
+            background-color: var(--isa-bg-screen);
+            border-bottom: 1px solid var(--isa-border-dark);
+            display: flex;
+            padding: var(--isa-space-sm) var(--isa-space-lg) 0 var(--isa-space-lg);
+            gap: var(--isa-space-xs);
+        }
+
+        .isa-nav-tab {
+            padding: 8px 16px;
+            background-color: var(--isa-bg-panel);
+            border: 1px solid var(--isa-border-medium);
+            border-bottom: none;
+            color: var(--isa-text-secondary);
+            font-size: var(--isa-font-size-sm);
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .isa-nav-tab:hover {
+            background-color: var(--isa-bg-faceplate);
+        }
+
+        .isa-nav-tab.active {
+            background-color: var(--isa-bg-faceplate);
+            color: var(--isa-text-primary);
+            border: 1px solid var(--isa-border-dark);
+            border-bottom: 2px solid var(--isa-bg-faceplate);
+            margin-bottom: -1px;
+            z-index: 10;
+        }
+
+        .isa-nav-tab.active::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background-color: var(--isa-state-normal);
+        }
+
+        /* ==========================================================================
+           PANELS & CONTAINERS
+           ========================================================================== */
+        .isa-panel {
+            background-color: var(--isa-bg-panel);
+            border: 1px solid var(--isa-border-medium);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .isa-panel-header {
+            background-color: var(--isa-bg-screen);
+            border-bottom: 1px solid var(--isa-border-medium);
+            padding: 6px 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .isa-panel-title {
+            font-size: var(--isa-font-size-sm);
+            font-weight: bold;
+            color: var(--isa-text-primary);
+            text-transform: uppercase;
+        }
+
+        .isa-panel-body {
+            padding: var(--isa-space-sm);
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: var(--isa-space-sm);
+            overflow-y: auto;
+            background-color: var(--isa-bg-faceplate);
+        }
+
+        /* ==========================================================================
+           DATA BLOCKS & TYPOGRAPHY
+           ========================================================================== */
+        .data-group {
+            display: flex;
+            flex-direction: column;
+            padding: var(--isa-space-xs) 0;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            border-bottom: 1px dotted var(--isa-border-light);
+            padding: 2px 0;
+        }
+
+        .data-label {
+            font-size: var(--isa-font-size-sm);
+            color: var(--isa-text-secondary);
+        }
+
+        .data-value-group {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+
+        .data-value {
+            font-size: var(--isa-font-size-lg);
+            font-weight: bold;
+            color: var(--isa-text-primary);
+            font-family: 'Courier New', Courier, monospace; /* Monospace for alignment */
+        }
+
+        .data-unit {
+            font-size: var(--isa-font-size-xs);
+            color: var(--isa-text-muted);
+        }
+
+        /* ==========================================================================
+           BUTTONS & CONTROLS (FLAT INDUSTRIAL)
+           ========================================================================== */
+        .isa-btn {
+            background-color: var(--isa-bg-panel);
+            border: 1px solid var(--isa-border-dark);
+            color: var(--isa-text-primary);
+            padding: 6px 12px;
+            font-size: var(--isa-font-size-sm);
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .isa-btn:hover {
+            background-color: var(--isa-bg-screen);
+        }
+
+        .isa-btn:active, .isa-btn.active {
+            background-color: var(--isa-border-medium);
+            border: 2px solid var(--isa-border-dark);
+            padding: 5px 11px; /* Offset for thicker border */
+        }
+
+        .isa-btn-primary {
+            background-color: var(--isa-state-normal);
+            color: var(--isa-text-inverse);
+            border-color: var(--isa-border-dark);
+        }
+        .isa-btn-primary:hover {
+            background-color: #23436b;
+        }
+
+        /* Flat ESTOP */
+        .isa-btn-estop {
+            background-color: var(--isa-alarm-l1);
+            color: var(--isa-text-inverse);
+            border: 2px solid var(--isa-border-dark);
+            font-size: var(--isa-font-size-md);
+            font-weight: bold;
+            padding: 0 var(--isa-space-xl);
+            height: 100%;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+        .isa-btn-estop:active {
+            background-color: #c53030;
+            border-width: 4px;
+            padding: 0 22px;
+        }
+
+        /* Flat Toggle Switch */
+        .isa-toggle {
+            display: inline-flex;
+            border: 1px solid var(--isa-border-dark);
+            background-color: var(--isa-bg-faceplate);
+        }
+        
+        .isa-toggle-opt {
+            padding: 4px 12px;
+            font-size: var(--isa-font-size-xs);
+            font-weight: bold;
+            color: var(--isa-text-secondary);
+            cursor: pointer;
+        }
+        
+        .isa-toggle-opt.selected {
+            background-color: var(--isa-border-medium);
+            color: var(--isa-text-primary);
+            border-left: 1px solid var(--isa-border-dark);
+            border-right: 1px solid var(--isa-border-dark);
+        }
+        .isa-toggle-opt:first-child.selected { border-left: none; }
+        .isa-toggle-opt:last-child.selected { border-right: none; }
+
+        /* ==========================================================================
+           ISA-101 ALARM HIERARCHY SHAPES
+           ========================================================================== */
+        .alarm-indicator {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 10px;
+            color: var(--isa-text-primary);
+        }
+
+        /* L1: Red Square */
+        .alarm-l1 {
+            width: 16px;
+            height: 16px;
+            background-color: var(--isa-alarm-l1);
+            border: 1px solid var(--isa-border-dark);
+            color: var(--isa-text-inverse);
+        }
+
+        /* L2: Yellow Triangle */
+        .alarm-l2 {
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 18px solid var(--isa-alarm-l2);
+            position: relative;
+        }
+        .alarm-l2::after {
+            content: '2';
+            position: absolute;
+            top: 4px;
+            left: -3px;
+            font-size: 10px;
+            font-weight: bold;
+            color: #000000;
+        }
+
+        /* L3: Orange Circle */
+        .alarm-l3 {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background-color: var(--isa-alarm-l3);
+            border: 1px solid var(--isa-border-dark);
+            color: #000000;
+        }
+
+        /* ==========================================================================
+           ISA-101 MOVING ANALOG INDICATORS (MAI)
+           High-performance graphical representations replacing standard gauges
+           ========================================================================== */
+        .mai-container {
+            display: flex;
+            align-items: center;
+            gap: var(--isa-space-sm);
+            width: 100%;
+            height: 24px;
+        }
+
+        .mai-label {
+            width: 40px;
+            font-size: var(--isa-font-size-xs);
+            color: var(--isa-text-secondary);
+            text-align: right;
+        }
+
+        .mai-track {
+            flex-grow: 1;
+            height: 12px;
+            background-color: var(--isa-bg-screen);
+            border: 1px solid var(--isa-border-medium);
+            position: relative;
+        }
+
+        .mai-fill {
+            height: 100%;
+            background-color: var(--isa-state-normal);
+            position: absolute;
+            left: 0;
+            top: 0;
+            /* width is set via inline style */
+        }
+
+        .mai-fill.alarm-active {
+            background-color: var(--isa-alarm-l1);
+        }
+
+        .mai-fill.warning-active {
+            background-color: var(--isa-alarm-l2);
+        }
+
+        /* Optimal Target Range Indicator */
+        .mai-target-range {
+            position: absolute;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.4);
+            border-left: 1px solid var(--isa-border-dark);
+            border-right: 1px solid var(--isa-border-dark);
+            z-index: 2;
+        }
+
+        /* Alarm Limits */
+        .mai-limit-marker {
+            position: absolute;
+            top: -3px;
+            width: 2px;
+            height: 16px;
+            background-color: var(--isa-text-primary);
+            z-index: 3;
+        }
+        .mai-limit-marker.hi-hi { background-color: var(--isa-alarm-l1); }
+        .mai-limit-marker.hi { background-color: var(--isa-alarm-l2); }
+        
+        .mai-value {
+            width: 45px;
+            font-size: var(--isa-font-size-sm);
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            text-align: right;
+        }
+
+        /* ==========================================================================
+           UTILITIES & HELPERS
+           ========================================================================== */
+        .flex-row { display: flex; align-items: center; }
+        .flex-col { display: flex; flex-direction: column; }
+        .justify-between { justify-content: space-between; }
+        .gap-sm { gap: var(--isa-space-sm); }
+        .gap-md { gap: var(--isa-space-md); }
+        .w-100 { width: 100%; }
+        .h-100 { height: 100%; }
+        
+        .border-box {
+            border: 1px solid var(--isa-border-medium);
+            padding: var(--isa-space-sm);
+            background-color: var(--isa-bg-faceplate);
+        }
+
+        /* Table styles for ISA-101 (Flat, distinct borders) */
+        .isa-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: var(--isa-font-size-sm);
+        }
+        .isa-table th, .isa-table td {
+            border: 1px solid var(--isa-border-medium);
+            padding: 4px 8px;
+            text-align: left;
+        }
+        .isa-table th {
+            background-color: var(--isa-bg-screen);
+            font-weight: bold;
+            color: var(--isa-text-secondary);
+        }
+        .isa-table td {
+            background-color: var(--isa-bg-faceplate);
+            color: var(--isa-text-primary);
+        }
+        .isa-table tr.active-row td {
+            background-color: var(--isa-bg-panel);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="app-layout">
+        
+        <!-- MASTER HEADER (ISA-101 COMPLIANT) -->
+        <header class="isa-header">
+            
+            <div class="header-section">
+                <!-- Branding -->
+                <div class="header-brand">
+                    <span class="header-brand-title">SBR-CORE</span>
+                    <span class="header-brand-sub">ISA-101 HMI V2.0</span>
+                </div>
+                
+                <!-- Facility & Process -->
+                <div class="header-data-block">
+                    <span class="header-data-label">Facility Node</span>
+                    <span class="header-data-value">BLR-INT-001</span>
+                </div>
+                
+                <div class="header-data-block">
+                    <span class="header-data-label">Process ID</span>
+                    <span class="header-data-value">SBR-8492</span>
+                </div>
+
+                <!-- Flat PLC Status -->
+                <div class="header-data-block">
+                    <span class="header-data-label">PLC Comm Status</span>
+                    <div class="plc-status-box">
+                        <div class="plc-status-indicator" id="hdr-plc-indicator"></div>
+                        <span class="header-data-value" style="font-size: var(--isa-font-size-sm);">NORMAL</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="header-section">
+                <!-- Shift Uptime -->
+                <div class="header-data-block text-right">
+                    <span class="header-data-label">Shift Uptime</span>
+                    <span class="header-data-value" id="hdr-uptime" style="font-family: 'Courier New', Courier, monospace;">04:12:55</span>
+                </div>
+
+                <!-- Operator Profile -->
+                <div class="header-data-block" style="border-left: 1px solid var(--isa-border-medium); padding-left: var(--isa-space-lg);">
+                    <span class="header-data-label">Active Operator</span>
+                    <span class="header-data-value" id="hdr-operator-id">OP-XXXX</span>
+                </div>
+
+                <!-- Flat Red E-STOP -->
+                <button class="isa-btn-estop" id="btn-global-estop">SYSTEM HALT</button>
+            </div>
+
+        </header>
+
+        <!-- UNIVERSAL SUB-NAVIGATION -->
+        <nav class="isa-nav">
+            <div class="isa-nav-tab active" onclick="window.location.href='operator.html'">CORE KINETICS</div>
+            <div class="isa-nav-tab" onclick="window.location.href='pid-tuning.html'">PID TUNING</div>
+            <div class="isa-nav-tab" onclick="window.location.href='trends.html'">TREND ANALYZER</div>
+            <div class="isa-nav-tab" onclick="window.location.href='alarm-history.html'">ALARM LEDGER</div>
+            <div class="isa-nav-tab" onclick="window.location.href='maintenance.html'">MAINTENANCE</div>
+        </nav>
+
+        <!-- MAIN HMI WORKSPACE GRID (Opened) -->
+        <main class="hmi-workspace" id="main-view-container">
+
+<!-- PASTE PART 2 HERE -->
+ <!-- LEFT COLUMN: P&ID & TIMERS -->
+            <div class="flex-col" style="gap: var(--isa-space-sm); height: 100%;">
+                
+                <!-- EQ Tank Control -->
+                <div class="isa-panel" style="flex: 1;">
+                    <div class="isa-panel-header">
+                        <span class="isa-panel-title">Equalization Tank [TK-101]</span>
+                        <div class="isa-toggle">
+                            <span class="isa-toggle-opt">MAN</span>
+                            <span class="isa-toggle-opt selected">AUTO</span>
+                        </div>
+                    </div>
+                    
+                    <div class="isa-panel-body flex-row gap-md" style="align-items: stretch;">
+                        <!-- Flat 2D SVG Tank -->
+                        <div style="width: 100px; height: 100%; border: 1px solid var(--isa-border-dark); background-color: var(--isa-bg-screen); position: relative; padding: 2px;">
+                            <svg width="100%" height="100%" viewBox="0 0 100 200" preserveAspectRatio="none">
+                                <!-- Grid scale markers -->
+                                <line x1="0" y1="50" x2="100" y2="50" stroke="var(--isa-border-medium)" stroke-dasharray="4,4"/>
+                                <line x1="0" y1="100" x2="100" y2="100" stroke="var(--isa-border-medium)" stroke-dasharray="4,4"/>
+                                <line x1="0" y1="150" x2="100" y2="150" stroke="var(--isa-border-medium)" stroke-dasharray="4,4"/>
+                                
+                                <!-- Dynamic Water Level (Flat Blue) -->
+                                <rect id="svg-eq-level" x="4" y="109.4" width="92" height="86.6" fill="#3182ce" />
+                                
+                                <!-- Outer Shell (Dark Grey) -->
+                                <rect x="2" y="2" width="96" height="196" fill="none" stroke="var(--isa-border-dark)" stroke-width="2" />
+                            </svg>
+                        </div>
+
+                        <!-- Level Readouts -->
+                        <div class="flex-col justify-between w-100">
+                            <div class="border-box">
+                                <span class="data-label">EQ LEVEL (PV)</span>
+                                <div class="data-value-group">
+                                    <span class="data-value" id="txt-eq-pv" style="color: var(--isa-text-primary);">45.3</span>
+                                    <span class="data-unit">%</span>
+                                </div>
+                                <div class="mai-container" style="height: 14px; margin-top: 6px;">
+                                    <div class="mai-track">
+                                        <div class="mai-target-range" style="left: 40%; width: 40%;"></div>
+                                        <div class="mai-fill" id="bar-eq-pv" style="width: 45.3%;"></div>
+                                        <div class="mai-limit-marker hi-hi" style="left: 90%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="border-box" style="background-color: var(--isa-bg-screen);">
+                                <span class="data-label">SETPOINT (SP)</span>
+                                <div class="data-value-group">
+                                    <span class="data-value" style="color: var(--isa-text-secondary);">80.0</span>
+                                    <span class="data-unit">%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sequence Timers -->
+                <div class="isa-panel" style="flex: 1;">
+                    <div class="isa-panel-header">
+                        <span class="isa-panel-title">Batch Sequence Timers</span>
+                        <span style="font-size: var(--isa-font-size-xs); font-weight: bold; color: var(--isa-text-secondary);">RUNNING</span>
+                    </div>
+                    
+                    <div class="isa-panel-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--isa-space-sm);">
+                        <div class="border-box" style="background-color: var(--isa-bg-screen);">
+                            <span class="data-label">FILL PHASE</span>
+                            <span class="data-value" style="color: var(--isa-text-secondary);">15:00</span>
+                            <div style="font-size: var(--isa-font-size-xs); color: var(--isa-text-muted); margin-top: 4px; border-top: 1px dotted var(--isa-border-light); padding-top: 2px;">COMPLETED</div>
+                        </div>
+                        
+                        <div class="border-box" style="background-color: var(--isa-border-dark); border-color: var(--isa-text-primary);">
+                            <div class="flex-row justify-between">
+                                <span class="data-label" style="color: var(--isa-bg-screen);">REACT PHASE</span>
+                                <div style="font-size: var(--isa-font-size-xs); background-color: var(--isa-bg-faceplate); color: var(--isa-text-primary); padding: 2px 4px; font-weight: bold;">ACTIVE</div>
+                            </div>
+                            <span class="data-value" id="timer-react" style="color: var(--isa-text-inverse);">45:00</span>
+                        </div>
+                        
+                        <div class="border-box" style="background-color: var(--isa-bg-screen);">
+                            <span class="data-label">SETTLE PHASE</span>
+                            <span class="data-value" style="color: var(--isa-text-secondary);">30:00</span>
+                            <div style="font-size: var(--isa-font-size-xs); color: var(--isa-text-muted); margin-top: 4px; border-top: 1px dotted var(--isa-border-light); padding-top: 2px;">PENDING</div>
+                        </div>
+                        
+                        <div class="border-box" style="background-color: var(--isa-bg-screen);">
+                            <span class="data-label">DECANT PHASE</span>
+                            <span class="data-value" style="color: var(--isa-text-secondary);">20:00</span>
+                            <div style="font-size: var(--isa-font-size-xs); color: var(--isa-text-muted); margin-top: 4px; border-top: 1px dotted var(--isa-border-light); padding-top: 2px;">PENDING</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- MIDDLE COLUMN: SENSORS & TRENDS -->
+            <div class="flex-col" style="gap: var(--isa-space-sm); height: 100%;">
+                
+                <!-- Primary Telemetry -->
+                <div class="isa-panel" style="flex: 1;">
+                    <div class="isa-panel-header">
+                        <span class="isa-panel-title">Process Variables</span>
+                    </div>
+                    
+                    <div class="isa-panel-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--isa-space-sm);">
+                        
+                        <!-- DO Sensor -->
+                        <div class="border-box flex-col">
+                            <span class="data-label">DISSOLVED O2 (DO)</span>
+                            <div class="data-value-group">
+                                <span class="data-value" id="sensor-do">2.14</span>
+                                <span class="data-unit">mg/L</span>
+                            </div>
+                            <div class="mai-container">
+                                <div class="mai-track">
+                                    <div class="mai-target-range" style="left: 20%; width: 60%;"></div>
+                                    <div class="mai-fill" style="width: 21.4%;"></div>
+                                    <div class="mai-limit-marker hi-hi" style="left: 10%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- pH Sensor -->
+                        <div class="border-box flex-col">
+                            <span class="data-label">PH LEVEL</span>
+                            <div class="data-value-group">
+                                <span class="data-value" id="sensor-ph">7.20</span>
+                                <span class="data-unit">pH</span>
+                            </div>
+                            <div class="mai-container">
+                                <div class="mai-track">
+                                    <div class="mai-target-range" style="left: 40%; width: 30%;"></div>
+                                    <div class="mai-fill" style="width: 51%;"></div>
+                                    <div class="mai-limit-marker hi-hi" style="left: 10%;"></div>
+                                    <div class="mai-limit-marker hi-hi" style="left: 90%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TSS Sensor -->
+                        <div class="border-box flex-col">
+                            <span class="data-label">TURBIDITY (TSS)</span>
+                            <div class="data-value-group">
+                                <span class="data-value" id="sensor-tss">18.5</span>
+                                <span class="data-unit">NTU</span>
+                            </div>
+                            <div class="mai-container">
+                                <div class="mai-track">
+                                    <div class="mai-target-range" style="left: 0%; width: 40%;"></div>
+                                    <div class="mai-fill" style="width: 37%;"></div>
+                                    <div class="mai-limit-marker hi" style="left: 60%;"></div>
+                                    <div class="mai-limit-marker hi-hi" style="left: 80%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- MLSS Sensor -->
+                        <div class="border-box flex-col">
+                            <span class="data-label">MLSS (BIOMASS)</span>
+                            <div class="data-value-group">
+                                <span class="data-value" id="sensor-mlss">2800</span>
+                                <span class="data-unit">mg/L</span>
+                            </div>
+                            <div class="mai-container">
+                                <div class="mai-track">
+                                    <div class="mai-target-range" style="left: 30%; width: 40%;"></div>
+                                    <div class="mai-fill" style="width: 60%;"></div>
+                                    <div class="mai-limit-marker hi" style="left: 80%;"></div>
+                                    <div class="mai-limit-marker hi-hi" style="left: 90%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Strip Chart Panel -->
+                <div class="isa-panel" style="flex: 1;">
+                    <div class="isa-panel-header">
+                        <span class="isa-panel-title">Real-Time Trend (pH)</span>
+                        <span style="font-size: var(--isa-font-size-xs); color: var(--isa-text-muted); font-weight: bold;">60 SEC WINDOW</span>
+                    </div>
+                    <div class="isa-panel-body" style="padding: 0; position: relative;">
+                        <canvas id="scadaLiveChart" style="width: 100%; height: 100%;"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- RIGHT COLUMN: ACTUATORS & DIAGNOSTICS -->
+            <div class="flex-col" style="gap: var(--isa-space-sm); height: 100%;">
+                
+                <!-- Actuator Controls -->
+                <div class="isa-panel" style="flex: 1;">
+                    <div class="isa-panel-header">
+                        <span class="isa-panel-title">Equipment Control</span>
+                    </div>
+                    
+                    <div class="isa-panel-body">
+                        
+                        <!-- Blower VFD -->
+                        <div class="border-box flex-col gap-sm">
+                            <div class="flex-row justify-between">
+                                <div class="flex-row gap-sm">
+                                    <!-- Muted Dark Blue for Running Status -->
+                                    <div style="width: 14px; height: 14px; background-color: var(--isa-state-normal); border: 1px solid var(--isa-border-dark);"></div>
+                                    <span style="font-weight: bold; font-size: var(--isa-font-size-md); color: var(--isa-text-primary);">BLOWER 1 VFD</span>
+                                </div>
+                                <div class="isa-toggle">
+                                    <span class="isa-toggle-opt">MAN</span>
+                                    <span class="isa-toggle-opt selected">AUTO</span>
+                                </div>
+                            </div>
+                            <div class="flex-row gap-sm" style="margin-top: 8px;">
+                                <button class="isa-btn isa-btn-primary" id="btn-blower-start" style="flex: 1;">START</button>
+                                <button class="isa-btn" id="btn-blower-stop" style="flex: 1;">STOP</button>
+                            </div>
+                        </div>
+
+                        <!-- Decant Valve -->
+                        <div class="border-box flex-col gap-sm">
+                            <div class="flex-row justify-between">
+                                <div class="flex-row gap-sm">
+                                    <!-- Dark Grey for Stopped Status -->
+                                    <div style="width: 14px; height: 14px; background-color: var(--isa-state-stopped); border: 1px solid var(--isa-border-dark);"></div>
+                                    <span style="font-weight: bold; font-size: var(--isa-font-size-md); color: var(--isa-text-primary);">DECANT VALVE V-103</span>
+                                </div>
+                                <div class="isa-toggle">
+                                    <span class="isa-toggle-opt selected">MAN</span>
+                                    <span class="isa-toggle-opt">AUTO</span>
+                                </div>
+                            </div>
+                            <div class="flex-row gap-sm" style="margin-top: 8px;">
+                                <button class="isa-btn" id="btn-valve-open" style="flex: 1;">OPEN</button>
+                                <button class="isa-btn isa-btn-primary" id="btn-valve-close" style="flex: 1;">CLOSE</button>
+                            </div>
+                        </div>
+                        
+                    </div>
+                </div>
+
+                <!-- System Diagnostics Table -->
+                <div class="isa-panel">
+                    <div class="isa-panel-header">
+                        <span class="isa-panel-title">System Diagnostics</span>
+                    </div>
+                    <div class="isa-panel-body" style="padding: 0;">
+                        <table class="isa-table">
+                            <tbody>
+                                <tr>
+                                    <td style="width: 60%; color: var(--isa-text-secondary);">PLC Memory</td>
+                                    <td style="font-weight: bold; font-family: 'Courier New', Courier, monospace;">42.1 %</td>
+                                </tr>
+                                <tr class="active-row">
+                                    <td style="color: var(--isa-text-secondary);">CPU Temp</td>
+                                    <td style="font-weight: bold; font-family: 'Courier New', Courier, monospace;">48.0 °C</td>
+                                </tr>
+                                <tr>
+                                    <td style="color: var(--isa-text-secondary);">Network I/O</td>
+                                    <td style="font-weight: bold; font-family: 'Courier New', Courier, monospace;">STABLE</td>
+                                </tr>
+                                <tr class="active-row">
+                                    <td style="color: var(--isa-text-secondary);">Cycle Time</td>
+                                    <td style="font-weight: bold; font-family: 'Courier New', Courier, monospace;">12 ms</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <button id="btn-pair-esp32" class="isa-btn" style="width: 100%; margin-top: 8px; font-weight: bold;">PAIR HARDWARE (ESP32)</button>
+
+                <!-- CSV Export Button -->
+                <button id="btn-op-csv" class="isa-btn" style="width: 100%; margin-top: 8px; background-color: #4a4e51; color: #ffffff; border: 1px solid #111111; border-radius: 0;">DOWNLOAD SHIFT REPORT (CSV)</button>
+
+                <!-- Offline View Container -->
+                <div id="view-offline" style="display: none; height: 100%; align-items: center; justify-content: center; background: #cfd4d8; border: 1px solid #7a8084;">
+                    <span style="color: #111111; font-weight: bold; font-size: 18px; text-transform: uppercase; letter-spacing: 1px;">SYSTEM NOTICE: Module requires Level 2 clearance. Currently Offline.</span>
+                </div>
+                <!-- Critical Alarm Banner -->
+                <div class="isa-panel" style="border: 2px solid var(--isa-alarm-l1); background-color: var(--isa-alarm-l1); flex-shrink: 0;">
+                    <div style="padding: var(--isa-space-md); display: flex; justify-content: space-between; align-items: center;">
+                        <div class="flex-row gap-sm">
+                            <div class="alarm-l1" style="background-color: var(--isa-text-inverse); color: var(--isa-alarm-l1); border-color: var(--isa-text-inverse);">1</div>
+                            <div class="flex-col">
+                                <span style="font-weight: bold; font-size: var(--isa-font-size-lg); color: var(--isa-text-inverse); text-transform: uppercase;">ALARM: HIGH EQ LEVEL</span>
+                                <span style="font-size: var(--isa-font-size-xs); color: var(--isa-text-inverse);">TAG: ALM-LSH-101 | UNACKNOWLEDGED</span>
+                            </div>
+                        </div>
+                        <button class="isa-btn" style="background-color: var(--isa-bg-screen); border-color: var(--isa-border-dark); color: var(--isa-text-primary);">ACKNOWLEDGE</button>
+                    </div>
+                </div>
+
+            </div>
+            
+        </main>
+    </div>
+    
+<!-- PASTE PART 3 HERE -->
+ <!-- Centralized Enterprise Architecture -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth-manager.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            // ==========================================================================
+            // 1. MODULAR SECURITY ENFORCEMENT
+            // ==========================================================================
+            window.enforceClearance('operator', 'op-auth-blr-x7a9.html');
+
+            // Flat Red E-STOP acts as emergency logout
+            const btnEstop = document.getElementById('btn-global-estop');
+            if (btnEstop) {
+                btnEstop.addEventListener('click', function() {
+                    btnEstop.innerText = "HALTING...";
+                    btnEstop.style.backgroundColor = "#c53030";
+                    window.sbrAuth.signOut().then(function() {
+                        window.location.href = 'op-auth-blr-x7a9.html';
+                    });
+                });
+            }
+
+            // ==========================================================================
+            // 2. STRICT ISA-101 STRIP CHART (CHART.JS)
+            // ==========================================================================
+            const canvasElement = document.getElementById('scadaLiveChart');
+            let scadaLiveChart = null;
+            const maxDataPoints = 60; // 60 seconds rolling window
+            
+            let chartData = Array(maxDataPoints).fill(7.20);
+            let chartLabels = Array(maxDataPoints).fill('');
+
+            if (canvasElement) {
+                canvasElement.style.backgroundColor = '#ffffff';
+                const ctx = canvasElement.getContext('2d');
+                
+                scadaLiveChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: chartLabels,
+                        datasets: [{
+                            label: 'pH Process Variable',
+                            data: chartData,
+                            borderColor: '#111111', 
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 0,
+                            fill: false,
+                            tension: 0 
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 0 
+                        },
+                        scales: {
+                            x: {
+                                display: false,
+                                grid: { display: false }
+                            },
+                            y: {
+                                display: true,
+                                min: 6.5,
+                                max: 8.0,
+                                grid: {
+                                    display: false,
+                                    drawBorder: true,
+                                    borderColor: '#111111'
+                                },
+                                ticks: {
+                                    color: '#111111',
+                                    font: { family: 'Courier New, Courier, monospace', size: 12 }
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: false }
+                        },
+                        layout: {
+                            padding: { left: 10, right: 10, top: 10, bottom: 10 }
+                        }
+                    }
+                });
+            }
+
+            // ==========================================================================
+            // 3. SCADA TELEMETRY SIMULATOR & MOVING ANALOG INDICATORS
+            // ==========================================================================
+            let simDO = 2.14;
+            let simPH = 7.20;
+            let simTSS = 18.5;
+            let simMLSS = 2800;
+            let simEQ = 45.3;
+
+            const elDO = document.getElementById('sensor-do');
+            const elPH = document.getElementById('sensor-ph');
+            const elTSS = document.getElementById('sensor-tss');
+            const elMLSS = document.getElementById('sensor-mlss');
+            const elEQ = document.getElementById('txt-eq-pv');
+            const barEQ = document.getElementById('bar-eq-pv');
+            const svgEQLevel = document.getElementById('svg-eq-level');
+
+            function updateMovingAnalogIndicator(textElement, currentValue, rangeMax) {
+                if (!textElement) return;
+                const maiContainer = textElement.parentElement.nextElementSibling;
+                
+                if (maiContainer && maiContainer.classList.contains('mai-container')) {
+                    const fillBar = maiContainer.querySelector('.mai-fill');
+                    if (fillBar) {
+                        let percentage = (currentValue / rangeMax) * 100;
+                        percentage = Math.max(0, Math.min(100, percentage)); 
+                        fillBar.style.width = percentage + '%';
+                        
+                        fillBar.classList.remove('alarm-active', 'warning-active');
+                        if (percentage > 90 || percentage < 10) {
+                            fillBar.classList.add('alarm-active');
+                        } else if (percentage > 80 || percentage < 20) {
+                            fillBar.classList.add('warning-active');
+                        }
+                    }
+                }
+            }
+
+            setInterval(function() {
+                simDO = Math.max(0.0, simDO + (Math.random() * 0.08 - 0.04));
+                simPH = Math.max(0.0, simPH + (Math.random() * 0.04 - 0.02));
+                simTSS = Math.max(0.0, simTSS + (Math.random() * 0.6 - 0.3));
+                simMLSS = Math.max(0.0, simMLSS + (Math.random() * 12.0 - 6.0));
+                simEQ = Math.max(0.0, Math.min(100.0, simEQ + (Math.random() * 0.4 - 0.2)));
+
+                if (elDO) { elDO.innerText = simDO.toFixed(2); updateMovingAnalogIndicator(elDO, simDO, 10); }
+                if (elPH) { elPH.innerText = simPH.toFixed(2); updateMovingAnalogIndicator(elPH, simPH, 14); }
+                if (elTSS) { elTSS.innerText = simTSS.toFixed(1); updateMovingAnalogIndicator(elTSS, simTSS, 50); }
+                if (elMLSS) { elMLSS.innerText = Math.round(simMLSS); updateMovingAnalogIndicator(elMLSS, simMLSS, 5000); }
+                
+                if (elEQ) {
+                    elEQ.innerText = simEQ.toFixed(1);
+                    if (barEQ) {
+                        barEQ.style.width = simEQ + '%';
+                    }
+                    
+                    if (svgEQLevel) {
+                        const newHeight = 86.6 * (simEQ / 100);
+                        const newY = 109.4 + (86.6 - newHeight);
+                        svgEQLevel.setAttribute('height', newHeight.toString());
+                        svgEQLevel.setAttribute('y', newY.toString());
+                    }
+                }
+
+                if (scadaLiveChart) {
+                    chartData.push(parseFloat(simPH.toFixed(2)));
+                    chartData.shift(); 
+                    scadaLiveChart.update();
+                }
+                
+            }, 1000);
+
+            // ==========================================================================
+            // 4. INTERACTIVE ACTUATORS & FLAT BUTTON LOGIC
+            // ==========================================================================
+            const toggleElements = document.querySelectorAll('.isa-toggle');
+            toggleElements.forEach(function(toggleContainer) {
+                const options = toggleContainer.querySelectorAll('.isa-toggle-opt');
+                options.forEach(function(option) {
+                    option.addEventListener('click', function() {
+                        options.forEach(function(opt) {
+                            opt.classList.remove('selected');
+                        });
+                        this.classList.add('selected');
+                    });
+                });
+            });
+
+            const btnBlowerStart = document.getElementById('btn-blower-start');
+            const btnBlowerStop = document.getElementById('btn-blower-stop');
+            
+            if (btnBlowerStart && btnBlowerStop) {
+                btnBlowerStart.addEventListener('click', function() {
+                    btnBlowerStart.classList.add('isa-btn-primary');
+                    btnBlowerStop.classList.remove('isa-btn-primary');
+                });
+                
+                btnBlowerStop.addEventListener('click', function() {
+                    btnBlowerStop.classList.add('isa-btn-primary');
+                    btnBlowerStart.classList.remove('isa-btn-primary');
+                });
+            }
+
+            const btnValveOpen = document.getElementById('btn-valve-open');
+            const btnValveClose = document.getElementById('btn-valve-close');
+            
+            if (btnValveOpen && btnValveClose) {
+                btnValveOpen.addEventListener('click', function() {
+                    btnValveOpen.classList.add('isa-btn-primary');
+                    btnValveClose.classList.remove('isa-btn-primary');
+                });
+                
+                btnValveClose.addEventListener('click', function() {
+                    btnValveClose.classList.add('isa-btn-primary');
+                    btnValveOpen.classList.remove('isa-btn-primary');
+                });
+            }
+
+            // ==========================================================================
+            // 7. OPERATOR SHIFT REPORT CSV GENERATOR
+            // ==========================================================================
+            const btnOpCsv = document.getElementById('btn-op-csv');
+            
+            if (btnOpCsv) {
+                btnOpCsv.addEventListener('click', function() {
+                    const originalText = btnOpCsv.innerText;
+                    btnOpCsv.innerText = 'GENERATING...';
+                    btnOpCsv.style.backgroundColor = '#7a8084';
+                    btnOpCsv.disabled = true;
+
+                    setTimeout(function() {
+                        const elDO = document.getElementById('sensor-do');
+                        const elPH = document.getElementById('sensor-ph');
+                        const elTSS = document.getElementById('sensor-tss');
+                        const elMLSS = document.getElementById('sensor-mlss');
+                        const elEQ = document.getElementById('txt-eq-pv');
+                        const opId = document.getElementById('hdr-operator-id');
+
+                        const valDO = elDO ? elDO.innerText : 'N/A';
+                        const valPH = elPH ? elPH.innerText : 'N/A';
+                        const valTSS = elTSS ? elTSS.innerText : 'N/A';
+                        const valMLSS = elMLSS ? elMLSS.innerText : 'N/A';
+                        const valEQ = elEQ ? elEQ.innerText : 'N/A';
+                        const valOp = opId ? opId.innerText : 'UNKNOWN';
+                        
+                        const timestamp = new Date().toISOString();
+
+                        let csvContent = "SBR OPERATOR SHIFT REPORT\n";
+                        csvContent += "Generated On:," + timestamp + "\n";
+                        csvContent += "Operator ID:," + valOp + "\n\n";
+                        
+                        csvContent += "Parameter,Value,Unit,Status\n";
+                        csvContent += "Dissolved Oxygen (DO)," + valDO + ",mg/L,NORMAL\n";
+                        csvContent += "pH Level," + valPH + ",pH,NORMAL\n";
+                        csvContent += "Turbidity (TSS)," + valTSS + ",NTU,NORMAL\n";
+                        csvContent += "MLSS (Biomass)," + valMLSS + ",mg/L,NORMAL\n";
+                        csvContent += "EQ Tank Level," + valEQ + ",%,NORMAL\n";
+
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        
+                        const link = document.createElement("a");
+                        link.setAttribute("href", url);
+                        link.setAttribute("download", "Operator_Shift_Report.csv");
+                        link.style.display = 'none';
+                        
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+
+                        btnOpCsv.innerText = originalText;
+                        btnOpCsv.style.backgroundColor = '#4a4e51';
+                        btnOpCsv.disabled = false;
+
+                    }, 500); 
+                });
+            }
+
+        }); // END DOMContentLoaded
+    </script>
+    <!-- Decoupled Logic Integration -->
+    <script src="../../js/esp32-telemetry.js"></script>
+    <script src="../../js/csv-generator.js"></script>
+    <script>
+        // Start listening to the Firebase 5L batch telemetry stream
+        window.onload = () => {
+            if (typeof initTelemetryStream === 'function') {
+                initTelemetryStream();
+            }
+        };
+        
+        // Wire the export button
+        document.querySelector('.isa-btn').addEventListener('click', () => {
+            // Assumes you have a table or data object to pass
+            alert('CSV Generator engaged. (Connect to your specific table ID)');
+        });
+    </script>
+    <!-- INJECT INTO SYSTEM DIAGNOSTICS OR EQUIPMENT CONTROL PANEL -->
+<!-- INJECT AT THE BOTTOM OF THE BODY TAG (BEFORE SCRIPTS) -->
+<div id="modal-esp32-pairing" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.7); align-items: center; justify-content: center;">
+    <div style="background-color: var(--isa-bg-panel, #e0e4e7); border: 2px solid var(--isa-border-dark, #4a4e51); width: 100%; max-width: 400px; padding: 16px; font-family: var(--isa-font-family, Arial, sans-serif);">
+        <div style="background-color: var(--isa-border-dark, #4a4e51); color: #ffffff; padding: 8px; font-weight: bold; text-transform: uppercase; margin-bottom: 16px; font-size: 14px;">
+            ESP32 Hardware Pairing
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size: 12px; font-weight: bold; color: var(--isa-text-secondary, #333333);">TARGET DEVICE ID</label>
+                <input type="text" id="input-esp32-id" placeholder="Enter ESP32 Serial: SBR-ESP-001" style="padding: 8px; border: 1px solid var(--isa-border-dark, #4a4e51); background-color: var(--isa-bg-faceplate, #ffffff); font-family: 'Courier New', Courier, monospace; font-size: 14px; outline: none;">
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size: 12px; font-weight: bold; color: var(--isa-text-secondary, #333333);">OPERATOR AUTH PIN</label>
+                <input type="password" id="input-esp32-pin" placeholder="Enter PIN" style="padding: 8px; border: 1px solid var(--isa-border-dark, #4a4e51); background-color: var(--isa-bg-faceplate, #ffffff); font-family: 'Courier New', Courier, monospace; font-size: 14px; outline: none;">
+            </div>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; gap: 8px;">
+            <button id="btn-cancel-pairing" class="isa-btn" style="flex: 1; background-color: var(--isa-bg-screen, #cfd4d8);">CANCEL</button>
+            <button id="btn-auth-pairing" class="isa-btn" style="flex: 1; background-color: var(--isa-state-normal, #2c5282); color: #ffffff;">AUTHORIZE & CONNECT</button>
+        </div>
+    </div>
+</div>
+<!-- ========================================================= -->
+    <!-- ESP32 HARDWARE PROVISIONING LOGIC                         -->
+    <!-- ========================================================= -->
+    <!-- Firebase v8 CDN Libraries -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    let db = null;
+    try {
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_cflBLHqk7L46KZ8mAy7RKYm995DU3vc",
+            authDomain: "sbr-scada-platform.firebaseapp.com",
+            databaseURL: "https://sbr-scada-platform-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "sbr-scada-platform",
+            storageBucket: "sbr-scada-platform.firebasestorage.app",
+            messagingSenderId: "1010717791850",
+            appId: "1:1010717791850:web:9e0d872b95df14b8ad5c13"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        db = firebase.database();
+    } catch (error) {
+        console.error("Firebase Initialization Error:", error);
+    }
+
+    const btnPairEsp32 = document.getElementById('btn-pair-esp32');
+    const modalEsp32 = document.getElementById('modal-esp32-pairing');
+    const btnCancelPairing = document.getElementById('btn-cancel-pairing');
+    const btnAuthPairing = document.getElementById('btn-auth-pairing');
+    const inputEsp32Id = document.getElementById('input-esp32-id');
+    const inputEsp32Pin = document.getElementById('input-esp32-pin');
+
+    window.bindESP32 = function(deviceId) {
+        console.log("SYSTEM NOTICE: Telemetry stream bound and routed to " + deviceId);
+    };
+
+    if (btnPairEsp32 && modalEsp32) {
+        btnPairEsp32.addEventListener('click', function() {
+            modalEsp32.style.display = 'flex';
+            inputEsp32Id.value = '';
+            inputEsp32Pin.value = '';
+        });
+    }
+
+    if (btnCancelPairing) {
+        btnCancelPairing.addEventListener('click', function() {
+            modalEsp32.style.display = 'none';
+        });
+    }
+
+    if (btnAuthPairing) {
+        btnAuthPairing.addEventListener('click', function() {
+            const deviceId = inputEsp32Id.value.trim();
+            const pin = inputEsp32Pin.value.trim();
+
+            if (!deviceId || !pin) {
+                alert("SYSTEM ERROR: Target Device ID and PIN are required.");
+                return;
+            }
+
+            if (!db) {
+                alert("SYSTEM ERROR: Database connection unavailable. Please check your configuration.");
+                return;
+            }
+
+            const originalText = btnAuthPairing.innerText;
+            btnAuthPairing.innerText = "AUTHENTICATING...";
+            btnAuthPairing.disabled = true;
+
+            db.ref('authorized_hardware/' + deviceId).once('value')
+                .then(function(snapshot) {
+                    if (snapshot.exists() && snapshot.val().pin === pin) {
+                        return db.ref('authorized_hardware/' + deviceId).update({
+                            status: 'paired',
+                            pairedAt: Date.now()
+                        }).then(function() {
+                            modalEsp32.style.display = 'none';
+                            
+                            btnPairEsp32.innerText = "ESP32 CONNECTED";
+                            btnPairEsp32.style.backgroundColor = "#2f855a"; 
+                            btnPairEsp32.style.color = "#ffffff";
+                            btnPairEsp32.style.borderColor = "#2f855a";
+                            btnPairEsp32.disabled = true;
+
+                            window.bindESP32(deviceId);
+                        });
+                    } else {
+                        throw new Error("Invalid credentials");
+                    }
+                })
+                .catch(function(error) {
+                    console.error("Hardware Pairing Error:", error);
+                    alert("Authentication Failed: Invalid Device ID or PIN.");
+                })
+                .finally(function() {
+                    btnAuthPairing.innerText = originalText;
+                    btnAuthPairing.disabled = false;
+                });
+        });
+    }
+});
+</script>
+</body>
+</html>

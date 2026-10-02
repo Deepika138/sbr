@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SBR HMI | Operator Authentication</title>
+    <style>
+        /* Modern Flat Industrial SCADA Theme */
+        :root {
+            --bg-window: #14161a;
+            --bg-panel: #21252b;
+            --bg-input: #0b0c10;
+            --border-flat: #5c6370;
+            --accent-blue: #61afef;
+            --text-main: #abb2bf;
+            --text-bright: #ffffff;
+            --alarm-red: #e06c75;
+            --btn-surface: #2c313a;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-window);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .login-box {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-flat);
+            padding: 40px;
+            width: 400px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .fp-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-bright);
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border-flat);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        .ctrl-row {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+
+        .ctrl-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            color: var(--text-main);
+            letter-spacing: 0.5px;
+        }
+
+        .digital-input {
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-flat);
+            color: var(--accent-blue);
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 1.1rem;
+            padding: 12px;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .digital-input:focus {
+            border-color: var(--accent-blue);
+        }
+        
+        .digital-input::placeholder {
+            color: #3e4451;
+        }
+
+        .ind-btn {
+            background-color: var(--btn-surface);
+            color: var(--text-bright);
+            border: 1px solid var(--border-flat);
+            padding: 14px;
+            font-size: 1rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            letter-spacing: 1px;
+            transition: all 0.2s ease;
+        }
+
+        .ind-btn:hover {
+            background-color: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: #000000;
+        }
+
+        .ind-btn:disabled {
+            opacity: 0.5;
+            cursor: wait;
+            background-color: var(--btn-surface);
+            border-color: var(--border-flat);
+            color: var(--text-main);
+        }
+
+        .error-msg {
+            display: none;
+            background-color: rgba(224, 108, 117, 0.1);
+            color: var(--alarm-red);
+            border: 1px solid var(--alarm-red);
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-box">
+        <div class="fp-title">Operator Gateway</div>
+        
+        <div class="error-msg" id="error-msg"></div>
+
+        <div class="ctrl-row">
+            <label class="ctrl-label" for="op-id">Operator ID</label>
+            <input type="text" id="op-id" class="digital-input" placeholder="OP-XXX" autocomplete="off">
+        </div>
+        
+        <div class="ctrl-row">
+            <label class="ctrl-label" for="op-pass">Secure Password</label>
+            <input type="password" id="op-pass" class="digital-input" placeholder="••••••••">
+        </div>
+
+        <button class="ind-btn" id="btn-auth" onclick="authenticateOperator()">Authenticate</button>
+    </div>
+
+    <!-- Firebase v8 CDN Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <script>
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_cflBLHqk7L46KZ8mAy7RKYm995DU3vc",
+            authDomain: "sbr-scada-platform.firebaseapp.com",
+            databaseURL: "https://sbr-scada-platform-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "sbr-scada-platform",
+            storageBucket: "sbr-scada-platform.firebasestorage.app",
+            messagingSenderId: "1010717791850",
+            appId: "1:1010717791850:web:9e0d872b95df14b8ad5c13"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        
+        const auth = firebase.auth();
+        const db = firebase.database();
+
+        function showError(msg) {
+            const errDiv = document.getElementById('error-msg');
+            errDiv.innerText = msg;
+            errDiv.style.display = 'block';
+        }
+
+        function authenticateOperator() {
+            document.getElementById('error-msg').style.display = 'none';
+            
+            let rawOpId = document.getElementById('op-id').value.trim();
+            const pass = document.getElementById('op-pass').value;
+            const btn = document.getElementById('btn-auth');
+
+            if (!rawOpId || !pass) {
+                return showError("Operator ID and Password are required.");
+            }
+
+            // Append dummy domain to satisfy Firebase Auth email format requirement
+            const email = rawOpId + "@sbr.local";
+
+            btn.disabled = true;
+            btn.innerText = "VERIFYING...";
+
+            auth.signInWithEmailAndPassword(email, pass)
+                .then((userCred) => {
+                    return db.ref('users/' + userCred.user.uid).once('value');
+                })
+                .then((snapshot) => {
+                    if (snapshot.exists() && snapshot.val().role === 'operator') {
+                        // Successfully verified, route to main SPA dashboard
+                        window.location.href = 'operator.html';
+                    } else {
+                        // User exists but lacks the operator role
+                        auth.signOut();
+                        showError("Access Denied: Operator privileges required.");
+                        btn.disabled = false;
+                        btn.innerText = "AUTHENTICATE";
+                    }
+                })
+                .catch((error) => {
+                    // Handle incorrect password or non-existent user
+                    showError("Authentication Failed: Invalid Credentials.");
+                    console.error("Auth Error:", error.code, error.message);
+                    btn.disabled = false;
+                    btn.innerText = "AUTHENTICATE";
+                });
+        }
+        
+        // Allow pressing "Enter" to trigger login
+        document.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                authenticateOperator();
+            }
+        });
+    </script>
+</body>
+</html>

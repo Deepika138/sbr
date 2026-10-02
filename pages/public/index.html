@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Public Environmental Transparency Portal</title>
+
+    <!-- Leaflet Maps CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        /* OFFICIAL GOVERNMENT PORTAL THEME */
+        :root {
+            --bg-cream: #f8f9fa;
+            --bg-white: #ffffff;
+            --primary-deep: #0f172a;
+            --primary-blue: #1e3a8a;
+            --primary-hover: #1d4ed8;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --border-light: #e2e8f0;
+            --success: #10b981;
+            --success-bg: #d1fae5;
+            --alert: #ef4444;
+            --alert-bg: #fee2e2;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            --font-main: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-cream);
+            color: var(--text-dark);
+            font-family: var(--font-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* HEADER & NAVIGATION */
+        .official-header {
+            background-color: var(--primary-deep);
+            color: var(--bg-white);
+            padding: 1rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .mock-logo {
+            width: 48px;
+            height: 48px;
+            background-color: var(--bg-white);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: var(--primary-blue);
+            font-size: 1.2rem;
+            box-shadow: 0 0 10px rgba(255,255,255,0.2);
+        }
+
+        .brand-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            line-height: 1.2;
+        }
+
+        .brand-subtitle {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--bg-white);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: #60a5fa;
+        }
+
+        .lang-toggle {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        /* HERO SECTION */
+        .hero-section {
+            background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary-blue) 100%);
+            padding: 4rem 5% 6rem 5%;
+            text-align: center;
+            color: var(--bg-white);
+        }
+
+        .hero-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            letter-spacing: -0.5px;
+        }
+
+        .hero-subtitle {
+            font-size: 1.2rem;
+            color: #e2e8f0;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* KPI OVERLAP */
+        .kpi-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            padding: 0 5%;
+            margin-top: -3rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .kpi-card {
+            background: var(--bg-white);
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            display: flex;
+            flex-direction: column;
+            border-top: 4px solid var(--primary-blue);
+        }
+
+        .kpi-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .kpi-value {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--primary-deep);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* MAIN TWO-COLUMN LAYOUT */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+            padding: 3rem 5%;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* LEFT COLUMN: FILTERS, EXPORT & EDU PANEL */
+        .left-column {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .filter-panel {
+            background: var(--bg-white);
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+        }
+
+        .filter-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--primary-deep);
+            border-bottom: 2px solid var(--bg-cream);
+            padding-bottom: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            font-family: var(--font-main);
+            font-size: 0.95rem;
+            color: var(--text-dark);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-blue);
+        }
+
+        .btn-secondary {
+            background-color: var(--bg-white);
+            color: var(--primary-deep);
+            border: 1px solid var(--border-light);
+            padding: 0.7rem 1.2rem;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--bg-cream);
+            border-color: #cbd5e1;
+        }
+
+        .edu-panel {
+            background: var(--bg-white);
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            border-left: 4px solid var(--primary-blue);
+        }
+
+        .edu-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            color: var(--primary-deep);
+        }
+
+        .edu-list {
+            padding-left: 1.25rem;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+            line-height: 1.5;
+        }
+
+        .edu-list li {
+            margin-bottom: 0.5rem;
+        }
+
+        .map-container {
+            height: 350px;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            background: #e2e8f0;
+        }
+
+        #leaflet-map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* RIGHT COLUMN: FACILITY GRID */
+        .facility-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .facility-card {
+            background: var(--bg-white);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 1.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .facility-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .fac-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .fac-id {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: 700;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .fac-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary-deep);
+        }
+
+        .fac-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .meta-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .meta-value {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--text-dark);
+        }
+
+        .badge-compliant {
+            display: inline-flex;
+            align-items: center;
+            background: var(--success-bg);
+            color: var(--success);
+            padding: 0.4rem 0.8rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .badge-alert {
+            display: inline-flex;
+            align-items: center;
+            background: var(--alert-bg);
+            color: var(--alert);
+            padding: 0.4rem 0.8rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .card-actions {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border-left: 1px solid var(--border-light);
+            padding-left: 1.5rem;
+            min-width: 200px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-blue);
+            color: var(--bg-white);
+            border: none;
+            padding: 0.8rem 1.2rem;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            background: var(--bg-white);
+            border-radius: var(--radius-lg);
+            border: 1px dashed var(--border-light);
+        }
+
+        /* FOOTER */
+        .official-footer {
+            margin-top: auto;
+            background-color: var(--primary-deep);
+            color: #94a3b8;
+            padding: 3rem 5%;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .footer-title {
+            color: var(--bg-white);
+            font-weight: 600;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .footer-links {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .footer-links a {
+            color: #94a3b8;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: var(--bg-white);
+        }
+
+        .footer-bottom {
+            text-align: center;
+            font-size: 0.85rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Leaflet Popups */
+        .leaflet-popup-content {
+            font-family: var(--font-main);
+        }
+        .pop-title {
+            font-weight: bold;
+            color: var(--primary-blue);
+            margin-bottom: 4px;
+        }
+        .pop-meta {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- OFFICIAL HEADER -->
+    <header class="official-header">
+        <div class="brand-container">
+            <div class="mock-logo">ECO</div>
+            <div>
+                <div class="brand-title">PUBLIC ENVIRONMENTAL TRANSPARENCY PORTAL</div>
+                <div class="brand-subtitle">Department of Public Health</div>
+            </div>
+        </div>
+        <nav class="nav-links">
+            <a href="#">Home</a>
+            <a href="#">About SBR Technology</a>
+            <a href="#">Compliance Standards</a>
+            <button class="lang-toggle">EN / ES</button>
+        </nav>
+    </header>
+
+    <!-- HERO SECTION -->
+    <section class="hero-section">
+        <h1 class="hero-title">Transparent, Real-Time Environmental Monitoring</h1>
+        <p class="hero-subtitle">Ensuring a sustainable future through continuous monitoring of Sequencing Batch Reactor (SBR) facilities across municipal and industrial zones.</p>
+    </section>
+
+    <!-- STATEWIDE KPIs -->
+    <div class="kpi-container">
+        <div class="kpi-card">
+            <span class="kpi-label">Network Sensor Uptime</span>
+            <span class="kpi-value">99.8%</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Active Monitoring Stations</span>
+            <span class="kpi-value" id="active-stations">4</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Overall Network Compliance</span>
+            <span class="kpi-value" style="color: var(--success);">98.5%</span>
+        </div>
+        <div class="kpi-card" style="border-top-color: var(--success);">
+            <span class="kpi-label">Public Health Advisory</span>
+            <span class="kpi-value" style="color: var(--success); font-size: 1.8rem; margin-top: 0.4rem;">NONE</span>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-layout">
+        
+        <!-- LEFT COLUMN -->
+        <aside class="left-column">
+            
+            <div class="filter-panel">
+                <div class="filter-title">Directory Filters</div>
+                
+                <div class="form-group">
+                    <label>Search by Name or ID</label>
+                    <input type="text" id="filter-search" class="form-control" placeholder="e.g. Whitefield...">
+                </div>
+
+                <div class="form-group">
+                    <label>District</label>
+                    <select id="filter-district" class="form-control">
+                        <option value="All">All Districts</option>
+                        <option value="Whitefield">Whitefield</option>
+                        <option value="Kadugodi">Kadugodi</option>
+                        <option value="Electronic City">Electronic City</option>
+                        <option value="Belagavi">Belagavi</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Compliance Status</label>
+                    <select id="filter-status" class="form-control">
+                        <option value="All">All Statuses</option>
+                        <option value="Official Compliant">Official Compliant</option>
+                        <option value="Alert">Active Alert</option>
+                    </select>
+                </div>
+
+                <button id="btn-export" class="btn-secondary">Export Directory (CSV)</button>
+            </div>
+
+            <div class="edu-panel">
+                <h3 class="edu-title">Did You Know?</h3>
+                <ul class="edu-list">
+                    <li>SBR (Sequencing Batch Reactor) systems treat wastewater in batches, reducing footprint and energy use.</li>
+                    <li>Real-time sensors monitor pH, turbidity, and dissolved oxygen continuously.</li>
+                    <li>Automated monitoring ensures compliance with National Environmental Authority standards 24/7.</li>
+                </ul>
+            </div>
+
+            <div class="map-container">
+                <div id="leaflet-map"></div>
+            </div>
+
+        </aside>
+
+        <!-- RIGHT COLUMN -->
+        <section class="right-column" id="facility-container">
+            <div class="facility-list" id="facility-list">
+                <!-- Cards rendered via JS -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- OFFICIAL FOOTER -->
+    <footer class="official-footer">
+        <div class="footer-grid">
+            <div>
+                <h4 class="footer-title">Contact Us</h4>
+                <p>National Environmental Authority Helpline: 1800-XXX-XXXX</p>
+                <p>Email: transparency@nea.gov.in</p>
+                <p>Central District, Metro Region</p>
+            </div>
+            <div>
+                <h4 class="footer-title">Quick Links</h4>
+                <ul class="footer-links">
+                    <li><a href="#">National Environmental Authority</a></li>
+                    <li><a href="#">Water Act Guidelines</a></li>
+                    <li><a href="#">Public Grievance Portal</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="footer-title">Disclaimer</h4>
+                <p style="font-size: 0.85rem; line-height: 1.5;">Data provided on this portal is collected in real-time from automated SCADA sensors. Occasional latency may occur. For legal compliance certifications, please refer to official laboratory audit reports.</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            &copy; 2026 National Environmental Authority - Environmental Transparency Initiative. All Rights Reserved.
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+
+            // 1. NEUTRALIZED MOCK DATA (Bengaluru/Karnataka Focus)
+            const facilities = [
+                {
+                    id: "NODE-WFD-001",
+                    name: "Whitefield Node",
+                    district: "Whitefield",
+                    capacity: "50,000 L/Day",
+                    inspected: "2026-09-10",
+                    status: "Official Compliant",
+                    lat: 12.9698,
+                    lng: 77.7499
+                },
+                {
+                    id: "NODE-KDG-002",
+                    name: "Kadugodi Industrial SBR",
+                    district: "Kadugodi",
+                    capacity: "120,000 L/Day",
+                    inspected: "2026-09-12",
+                    status: "Official Compliant",
+                    lat: 12.9985,
+                    lng: 77.7615
+                },
+                {
+                    id: "NODE-ECO-001",
+                    name: "Electronic City Phase 1",
+                    district: "Electronic City",
+                    capacity: "250,000 L/Day",
+                    inspected: "2026-09-08",
+                    status: "Alert",
+                    lat: 12.8452,
+                    lng: 77.6602
+                },
+                {
+                    id: "NODE-GKK-001",
+                    name: "Gokak Municipal Node",
+                    district: "Belagavi",
+                    capacity: "75,000 L/Day",
+                    inspected: "2026-09-05",
+                    status: "Official Compliant",
+                    lat: 16.1667,
+                    lng: 74.8333
+                }
+            ];
+
+            let currentFilteredData = [...facilities];
+
+            // 2. MAP INITIALIZATION (ESRI WORLD STREET MAP)
+            const map = L.map('leaflet-map', {
+                zoomControl: true,
+                attributionControl: false
+            }).setView([12.9716, 77.5946], 10); 
+
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 18,
+                subdomains: 'abcd'
+            }).addTo(map);
+
+            L.control.attribution({
+                position: 'bottomright',
+                prefix: false
+            }).addAttribution('Tiles &copy; Esri').addTo(map);
+
+            let markerLayerGroup = L.layerGroup().addTo(map);
+
+            // 3. UI RENDERING & FILTERING
+            const listContainer = document.getElementById('facility-list');
+            const searchInput = document.getElementById('filter-search');
+            const districtSelect = document.getElementById('filter-district');
+            const statusSelect = document.getElementById('filter-status');
+            const stationsCount = document.getElementById('active-stations');
+
+            function renderFacilities(data) {
+                listContainer.innerHTML = '';
+                markerLayerGroup.clearLayers();
+                
+                if (data.length === 0) {
+                    listContainer.innerHTML = '<div class="no-results">No facilities found matching the current filters.</div>';
+                    stationsCount.innerText = "0";
+                    return;
+                }
+
+                stationsCount.innerText = data.length;
+
+                data.forEach(fac => {
+                    // Create Card
+                    const card = document.createElement('div');
+                    card.className = 'facility-card';
+                    
+                    let badgeHtml = fac.status === 'Official Compliant' 
+                        ? `<div class="badge-compliant">✓ OFFICIAL COMPLIANT</div>`
+                        : `<div class="badge-alert">⚠ ACTIVE ALERT</div>`;
+
+                    card.innerHTML = `
+                        <div>
+                            <div class="fac-header">
+                                <span class="fac-id">${fac.id}</span>
+                                ${badgeHtml}
+                            </div>
+                            <div class="fac-name">${fac.name}</div>
+                            
+                            <hr style="border: 0; border-top: 1px solid var(--border-light); margin: 1rem 0;">
+                            
+                            <div class="fac-meta">
+                                <div class="meta-item">
+                                    <span class="meta-label">District</span>
+                                    <span class="meta-value">${fac.district}</span>
+                                </div>
+                                <div class="meta-item">
+                                    <span class="meta-label">Treatment Capacity</span>
+                                    <span class="meta-value">${fac.capacity}</span>
+                                </div>
+                                <div class="meta-item">
+                                    <span class="meta-label">Last Lab Inspection</span>
+                                    <span class="meta-value">${fac.inspected}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <a href="facility-details.html?id=${fac.id}" class="btn-primary">VIEW LIVE WATER QUALITY</a>
+                        </div>
+                    `;
+                    listContainer.appendChild(card);
+
+                    // Create Map Marker
+                    const marker = L.marker([fac.lat, fac.lng]);
+                    const popupContent = `
+                        <div class="pop-title">${fac.name}</div>
+                        <div class="pop-meta">${fac.district}</div>
+                        <div class="pop-meta" style="margin-bottom:8px;">ID: ${fac.id}</div>
+                        <a href="facility-details.html?id=${fac.id}" style="color:var(--primary-blue); font-weight:bold; text-decoration:none;">View Details &rarr;</a>
+                    `;
+                    marker.bindPopup(popupContent);
+                    markerLayerGroup.addLayer(marker);
+                });
+            }
+
+            function applyFilters() {
+                const searchQ = searchInput.value.toLowerCase();
+                const distQ = districtSelect.value;
+                const statQ = statusSelect.value;
+
+                currentFilteredData = facilities.filter(fac => {
+                    const matchSearch = fac.name.toLowerCase().includes(searchQ) || fac.id.toLowerCase().includes(searchQ);
+                    const matchDist = distQ === 'All' || fac.district === distQ;
+                    const matchStat = statQ === 'All' || fac.status === statQ;
+                    
+                    return matchSearch && matchDist && matchStat;
+                });
+
+                renderFacilities(currentFilteredData);
+            }
+
+            // Bind Events
+            searchInput.addEventListener('input', applyFilters);
+            districtSelect.addEventListener('change', applyFilters);
+            statusSelect.addEventListener('change', applyFilters);
+
+            // Initial Render
+            renderFacilities(facilities);
+
+            // 4. EXPORT DIRECTORY TO CSV
+            const btnExport = document.getElementById('btn-export');
+            if (btnExport) {
+                btnExport.addEventListener('click', function() {
+                    let csv = "Facility ID,Name,District,Capacity,Last Inspected,Status\n";
+                    currentFilteredData.forEach(fac => {
+                        csv += `${fac.id},"${fac.name}",${fac.district},"${fac.capacity}",${fac.inspected},${fac.status}\n`;
+                    });
+                    
+                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'public_directory_export.csv';
+                    a.style.display = 'none';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                });
+            }
+        });
+    </script>
+</body>
+</html>

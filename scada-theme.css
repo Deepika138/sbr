@@ -1,0 +1,194 @@
+/* ISA-101 Industrial Dark Mode - Global Theme */
+:root {
+    --bg-base: #1e1e1e;
+    --panel-bg: #2d2d2d;
+    --border-dark: #444444;
+    --border-light: #555555;
+    --text-main: #e0e0e0;
+    --text-muted: #888888;
+    --btn-base: #404040;
+    --btn-hover: #505050;
+    --btn-active: #666666;
+    --alarm-red: #d32f2f;
+    --alarm-yellow: #fbc02d;
+    --status-green: #388e3c; /* Subdued green for running states */
+    --status-offline: #757575;
+    
+    /* Variables for other pages (index, config, auditor) to map gracefully to dark mode */
+    --tab-inactive: #2a2a2a;
+    --bg-color: #1e1e1e;
+    --border-color: #444444;
+    --input-bg: #333333;
+    --table-header: #333333;
+    --bar-bg: #222222;
+    --bar-fill: #888888;
+}
+
+* {
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--bg-base);
+    color: var(--text-main);
+    margin: 0;
+    padding: 10px 15px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+}
+
+/* --- Global Alarm Banner --- */
+#global-alarm-banner {
+    display: none;
+    background-color: var(--alarm-red);
+    color: white;
+    text-align: center;
+    font-weight: bold;
+    padding: 10px;
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    border: 2px solid #ff6666;
+    animation: flash 2s infinite;
+}
+
+@keyframes flash {
+    0% { opacity: 1; }
+    50% { opacity: 0.8; }
+    100% { opacity: 1; }
+}
+
+/* --- Global Headers --- */
+.hmi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-dark);
+    padding: 10px 20px;
+    margin-bottom: 15px;
+}
+
+.header-info h1 {
+    margin: 0;
+    font-size: 1.3rem;
+    text-transform: uppercase;
+    color: #ffffff;
+}
+
+.header-meta {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    display: flex;
+    gap: 20px;
+    margin-top: 5px;
+}
+
+button {
+    font-family: inherit;
+    cursor: pointer;
+    text-transform: uppercase;
+    font-weight: bold;
+    border: 1px solid var(--border-light);
+    color: var(--text-main);
+    background-color: var(--btn-base);
+    padding: 8px 15px;
+}
+
+button:hover { background-color: var(--btn-hover); }
+
+/* --- Grid & Panel Layouts --- */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-bottom: 20px;
+}
+
+.panel {
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-dark);
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-header {
+    font-size: 1.1rem;
+    font-weight: bold;
+    border-bottom: 1px solid var(--border-dark);
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    color: #ffffff;
+}
+
+/* --- Telemetry Expansion --- */
+.telemetry-live-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 15px;
+}
+.tel-card {
+    background-color: var(--bg-base);
+    padding: 10px;
+    border: 1px solid var(--border-dark);
+    text-align: center;
+}
+.tel-lbl { color: var(--text-muted); font-size: 0.85rem; font-weight: bold; text-transform: uppercase; }
+.tel-val { font-size: 1.4rem; font-family: monospace; font-weight: bold; margin-top: 5px; color: #ffffff;}
+.tel-unit { font-size: 0.8rem; color: var(--text-muted); }
+
+/* --- Chart Controls --- */
+.chart-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    background-color: var(--bg-base);
+    padding: 8px;
+    border: 1px solid var(--border-dark);
+}
+.chart-controls select {
+    background-color: var(--input-bg);
+    color: var(--text-main);
+    border: 1px solid var(--border-light);
+    padding: 5px;
+    font-weight: bold;
+    outline: none;
+}
+.chart-container { flex-grow: 1; min-height: 250px; position: relative; }
+
+/* --- Controls & Faults (From Task 12) --- */
+.phase-indicator { display: flex; gap: 5px; margin-bottom: 20px; }
+.phase-box { flex: 1; background-color: var(--btn-base); text-align: center; padding: 10px 5px; font-size: 0.85rem; font-weight: bold; border: 1px solid var(--border-dark); color: var(--text-muted); }
+.phase-box.active { background-color: var(--border-light); color: #ffffff; border-bottom: 3px solid #ffffff; }
+
+.control-row { display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-base); padding: 10px; margin-bottom: 10px; border: 1px solid var(--border-dark); }
+.control-label { font-weight: bold; font-size: 0.95rem; }
+.toggle-group { display: flex; gap: 5px; }
+.toggle-group button.active-auto { background-color: var(--btn-active); color: white; border-color: white;}
+.toggle-group button.active-on { background-color: var(--status-green); color: white; }
+
+.fault-grid { display: flex; gap: 10px; margin-bottom: 15px; }
+.fault-indicator { flex: 1; text-align: center; padding: 8px; font-size: 0.85rem; font-weight: bold; background-color: var(--status-green); color: white; }
+.fault-indicator.offline { background-color: var(--status-offline); }
+
+.alarm-table, .report-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.alarm-table th, .report-table th { text-align: left; padding: 8px; background-color: var(--border-dark); color: var(--text-main); }
+.alarm-table td, .report-table td { padding: 8px; border-bottom: 1px solid var(--border-dark); }
+.row-critical { background-color: rgba(211, 47, 47, 0.2); color: #ff9999; }
+.btn-ack { background-color: var(--btn-base); font-size: 0.8rem; padding: 4px 8px; }
+
+/* Input field dark mode resets */
+input[type="text"], input[type="password"], input[type="email"], input[type="number"] {
+    background-color: var(--input-bg);
+    color: var(--text-main);
+    border: 1px solid var(--border-dark);
+}

@@ -1,0 +1,2043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SBR Regulatory Audit & Compliance Portal | CPCB/KSPCB Standards</title>
+    
+    <!-- Firebase v8 CDN Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* ==========================================================================
+           ENTERPRISE GOVERNMENT REGULATORY DESIGN SYSTEM
+           ========================================================================== */
+        
+        :root {
+            /* Official Color Palette */
+            --color-bg-base: #f4f7f9;
+            --color-bg-surface: #ffffff;
+            --color-bg-alt: #f8fafc;
+            
+            --color-gov-navy: #0a192f;
+            --color-gov-blue: #003366;
+            --color-gov-light: #e6f0fa;
+            --color-gov-accent: #2563eb;
+            
+            --color-text-primary: #1e293b;
+            --color-text-secondary: #475569;
+            --color-text-muted: #64748b;
+            --color-text-inverse: #ffffff;
+            
+            --color-border-light: #e2e8f0;
+            --color-border-medium: #cbd5e1;
+            --color-border-dark: #94a3b8;
+            
+            /* Status Indicators */
+            --color-status-compliant: #059669;
+            --color-bg-compliant: #d1fae5;
+            --color-border-compliant: #10b981;
+            
+            --color-status-violation: #dc2626;
+            --color-bg-violation: #fee2e2;
+            --color-border-violation: #ef4444;
+            
+            --color-status-warning: #d97706;
+            --color-bg-warning: #fef3c7;
+            --color-border-warning: #f59e0b;
+            
+            --color-status-offline: #64748b;
+            --color-bg-offline: #f1f5f9;
+            --color-border-offline: #94a3b8;
+            
+            /* Typography & Sizing */
+            --font-family-sans: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --font-family-mono: 'Consolas', 'Courier New', monospace;
+            --radius-sm: 2px;
+            --radius-md: 4px;
+            --radius-lg: 6px;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --transition-speed: 0.2s;
+        }
+
+        /* --------------------------------------------------------------------------
+           RESET & GLOBAL TYPOGRAPHY
+           -------------------------------------------------------------------------- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family-sans);
+            background-color: var(--color-bg-base);
+            color: var(--color-text-primary);
+            line-height: 1.5;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--color-gov-navy);
+            font-weight: 700;
+        }
+
+        /* --------------------------------------------------------------------------
+           CUSTOM SCROLLBARS
+           -------------------------------------------------------------------------- */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--color-bg-alt);
+            border-left: 1px solid var(--color-border-light);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--color-border-dark);
+            border-radius: var(--radius-sm);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--color-text-muted);
+        }
+
+        /* --------------------------------------------------------------------------
+           LAYOUT GRIDS & CONTAINERS
+           -------------------------------------------------------------------------- */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .grid-row {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .grid-cols-5 { grid-template-columns: repeat(5, 1fr); }
+        .grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+        .grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+
+        .panel {
+            background: var(--color-bg-surface);
+            border: 1px solid var(--color-border-medium);
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--color-border-light);
+            background-color: var(--color-bg-alt);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--color-gov-blue);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-body {
+            padding: 16px;
+            flex: 1;
+        }
+
+        /* --------------------------------------------------------------------------
+           GLOBAL HEADER
+           -------------------------------------------------------------------------- */
+        .global-header {
+            background-color: var(--color-gov-navy);
+            color: var(--color-text-inverse);
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 4px solid var(--color-status-violation); /* Red accent line */
+            flex-shrink: 0;
+            box-shadow: var(--shadow-md);
+            z-index: 100;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .brand-logo {
+            width: 32px;
+            height: 32px;
+            fill: var(--color-text-inverse);
+        }
+
+        .brand-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .facility-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 4px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius-sm);
+        }
+
+        .facility-selector label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: var(--color-border-light);
+        }
+
+        .facility-dropdown {
+            background: transparent;
+            color: var(--color-text-inverse);
+            border: none;
+            font-size: 0.9rem;
+            font-weight: 700;
+            outline: none;
+            cursor: pointer;
+        }
+        
+        .facility-dropdown option {
+            background: var(--color-bg-surface);
+            color: var(--color-text-primary);
+        }
+
+        .auditor-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 1px solid rgba(255,255,255,0.2);
+            padding-left: 24px;
+        }
+
+        .auditor-avatar {
+            width: 32px;
+            height: 32px;
+            background-color: var(--color-gov-accent);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            border: 2px solid var(--color-text-inverse);
+        }
+
+        .auditor-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .auditor-name {
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .auditor-role {
+            font-size: 0.7rem;
+            color: var(--color-border-light);
+            text-transform: uppercase;
+        }
+
+        .sys-time {
+            font-family: var(--font-family-mono);
+            font-size: 0.85rem;
+            color: var(--color-status-compliant);
+            background: rgba(0,0,0,0.3);
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(5, 150, 105, 0.4);
+        }
+
+        .btn-logout {
+            background: transparent;
+            border: 1px solid var(--color-text-inverse);
+            color: var(--color-text-inverse);
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all var(--transition-speed);
+            border-radius: var(--radius-sm);
+        }
+
+        .btn-logout:hover {
+            background: var(--color-text-inverse);
+            color: var(--color-gov-navy);
+        }
+
+        /* --------------------------------------------------------------------------
+           CTO LICENSE PANE
+           -------------------------------------------------------------------------- */
+        .cto-pane {
+            background: var(--color-bg-surface);
+            border: 1px solid var(--color-border-medium);
+            border-left: 4px solid var(--color-gov-blue);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .cto-info-group {
+            display: flex;
+            gap: 32px;
+            align-items: center;
+        }
+
+        .cto-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cto-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--color-text-muted);
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .cto-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--color-gov-navy);
+            font-family: var(--font-family-mono);
+        }
+
+        .btn-primary {
+            background-color: var(--color-gov-blue);
+            color: var(--color-text-inverse);
+            border: 1px solid var(--color-gov-navy);
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            transition: background var(--transition-speed);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--color-gov-navy);
+        }
+
+        /* --------------------------------------------------------------------------
+           KPI CARDS (EFFLUENT GRID)
+           -------------------------------------------------------------------------- */
+        .kpi-card {
+            background: var(--color-bg-surface);
+            border: 1px solid var(--color-border-medium);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: var(--shadow-sm);
+            transition: transform var(--transition-speed), box-shadow var(--transition-speed);
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--color-gov-accent);
+        }
+
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            border-bottom: 1px dashed var(--color-border-light);
+            padding-bottom: 8px;
+        }
+
+        .kpi-title-block {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .kpi-param-name {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--color-text-primary);
+            text-transform: uppercase;
+        }
+
+        .kpi-sensor-id {
+            font-size: 0.65rem;
+            color: var(--color-text-muted);
+            font-family: var(--font-family-mono);
+            background: var(--color-bg-alt);
+            padding: 2px 4px;
+            border: 1px solid var(--color-border-light);
+            border-radius: 2px;
+            margin-top: 4px;
+            display: inline-block;
+            width: fit-content;
+        }
+
+        .kpi-body {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .kpi-reading {
+            font-family: var(--font-family-mono);
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: var(--color-gov-navy);
+            line-height: 1;
+        }
+
+        .kpi-unit {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--color-text-secondary);
+        }
+
+        .kpi-limit {
+            font-size: 0.75rem;
+            color: var(--color-text-muted);
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .kpi-sparkline {
+            height: 40px;
+            width: 100%;
+            background-color: var(--color-bg-alt);
+            border: 1px solid var(--color-border-light);
+            margin-bottom: 12px;
+            position: relative;
+        }
+        
+        .kpi-sparkline::after {
+            content: 'Trend Canvas';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.6rem;
+            color: var(--color-text-muted);
+            text-transform: uppercase;
+        }
+
+        .kpi-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+            padding-top: 12px;
+            border-top: 1px solid var(--color-border-light);
+        }
+
+        .kpi-timestamp {
+            font-size: 0.65rem;
+            color: var(--color-text-muted);
+            font-family: var(--font-family-mono);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --------------------------------------------------------------------------
+           STATUS BADGES & INDICATORS
+           -------------------------------------------------------------------------- */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            border: 1px solid;
+            border-radius: var(--radius-sm);
+            letter-spacing: 0.5px;
+        }
+
+        .status-compliant {
+            background-color: var(--color-bg-compliant);
+            color: var(--color-status-compliant);
+            border-color: var(--color-border-compliant);
+        }
+
+        .status-violation {
+            background-color: var(--color-bg-violation);
+            color: var(--color-status-violation);
+            border-color: var(--color-border-violation);
+            animation: pulse-border-red 2s infinite;
+        }
+
+        .status-warning {
+            background-color: var(--color-bg-warning);
+            color: var(--color-status-warning);
+            border-color: var(--color-border-warning);
+        }
+
+        .status-offline {
+            background-color: var(--color-bg-offline);
+            color: var(--color-status-offline);
+            border-color: var(--color-border-offline);
+        }
+
+        @keyframes pulse-border-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        /* --------------------------------------------------------------------------
+           TOOLTIPS (Pure CSS)
+           -------------------------------------------------------------------------- */
+        [data-tooltip] {
+            position: relative;
+            cursor: help;
+        }
+        
+        [data-tooltip]::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(-8px);
+            background: var(--color-gov-navy);
+            color: var(--color-text-inverse);
+            padding: 6px 10px;
+            font-size: 0.7rem;
+            font-weight: 400;
+            white-space: nowrap;
+            border-radius: var(--radius-sm);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity var(--transition-speed);
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        [data-tooltip]::after {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 5px;
+            border-style: solid;
+            border-color: var(--color-gov-navy) transparent transparent transparent;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity var(--transition-speed);
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        [data-tooltip]:hover::before,
+        [data-tooltip]:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* --------------------------------------------------------------------------
+           TABLES
+           -------------------------------------------------------------------------- */
+        .reg-table-container {
+            width: 100%;
+            overflow-x: auto;
+            border: 1px solid var(--color-border-medium);
+            background: var(--color-bg-surface);
+        }
+
+        .reg-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            text-align: left;
+        }
+
+        .reg-table thead th {
+            background-color: var(--color-bg-alt);
+            color: var(--color-text-secondary);
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 12px 16px;
+            border-bottom: 2px solid var(--color-border-medium);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .reg-table tbody tr {
+            border-bottom: 1px solid var(--color-border-light);
+            transition: background var(--transition-speed);
+        }
+
+        .reg-table tbody tr:nth-child(even) {
+            background-color: #fafbfc;
+        }
+
+        .reg-table tbody tr:hover {
+            background-color: var(--color-gov-light);
+        }
+
+        .reg-table td {
+            padding: 12px 16px;
+            color: var(--color-text-primary);
+            vertical-align: middle;
+        }
+        
+        /* --------------------------------------------------------------------------
+           FORM CONTROLS
+           -------------------------------------------------------------------------- */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+        }
+
+        .form-control {
+            background: var(--color-bg-surface);
+            border: 1px solid var(--color-border-medium);
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            color: var(--color-text-primary);
+            border-radius: var(--radius-sm);
+            outline: none;
+            transition: border-color var(--transition-speed);
+            font-family: inherit;
+        }
+
+        .form-control:focus {
+            border-color: var(--color-gov-accent);
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <!-- GLOBAL HEADER -->
+        <header class="global-header">
+            <div class="header-brand">
+                <svg class="brand-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+                <span class="brand-title">Regulatory Audit Portal</span>
+            </div>
+            
+            <div class="header-controls">
+                <div class="facility-selector">
+                    <label for="global-facility">Facility</label>
+                    <select id="global-facility" class="facility-dropdown">
+                        <option value="SBR-BLR-001">SBR-BLR-001 (Bengaluru South)</option>
+                        <option value="SBR-PUN-042">SBR-PUN-042 (Pune East)</option>
+                        <option value="SBR-DEL-019">SBR-DEL-019 (Delhi North)</option>
+                    </select>
+                </div>
+                
+                <div class="sys-time" id="server-time" data-tooltip="Indian Standard Time (IST)">
+                    2026-08-30 14:05:22
+                </div>
+                
+                <div class="auditor-profile">
+                    <div class="auditor-avatar">A</div>
+                    <div class="auditor-details">
+                        <span class="auditor-name" id="auth-auditor-id">AUD-XXXX</span>
+                        <span class="auditor-role">Chief Env. Officer</span>
+                    </div>
+                </div>
+                
+                <button class="btn-logout" id="btn-logout">Logout</button>
+            </div>
+        </header>
+
+        <!-- MAIN SCROLLABLE CONTENT -->
+        <main class="main-content">
+            
+            <!-- CTO LICENSE PANE -->
+            <section class="cto-pane" id="cto-pane">
+                <div class="cto-info-group">
+                    <div class="cto-item">
+                        <span class="cto-label">Consent to Operate (CTO)</span>
+                        <span class="status-badge status-compliant" id="cto-status">VALID</span>
+                    </div>
+                    <div class="cto-item">
+                        <span class="cto-label">License Registration No.</span>
+                        <span class="cto-value" id="cto-license">KSPCB/CTO/2026/8821</span>
+                    </div>
+                    <div class="cto-item">
+                        <span class="cto-label">Expiration Date</span>
+                        <span class="cto-value" id="cto-expiry">2027-12-31</span>
+                    </div>
+                    <div class="cto-item">
+                        <span class="cto-label">Authorized Capacity</span>
+                        <span class="cto-value" id="cto-mld">1.50 MLD</span>
+                    </div>
+                </div>
+                <button class="btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    View Certificate
+                </button>
+            </section>
+
+            <!-- PRIMARY EFFLUENT KPI GRID -->
+            <section>
+                <h2 style="font-size: 1.1rem; text-transform: uppercase; margin-bottom: 16px; border-bottom: 2px solid var(--color-border-medium); padding-bottom: 8px;">
+                    Primary Effluent Quality (Legally Binding)
+                </h2>
+                
+                <div class="grid-row grid-cols-5" id="effluent-kpi-grid">
+                    
+                    <!-- KPI 1: pH -->
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <div class="kpi-title-block">
+                                <span class="kpi-param-name" data-tooltip="Potential of Hydrogen">Effluent pH</span>
+                                <span class="kpi-sensor-id">SN-PH-01</span>
+                            </div>
+                            <span class="status-badge status-compliant">COMPLIANT</span>
+                        </div>
+                        <div class="kpi-body">
+                            <span class="kpi-reading">7.24</span>
+                            <span class="kpi-unit">pH</span>
+                        </div>
+                        <div class="kpi-limit">
+                            <span>Target: 6.5 - 8.5</span>
+                            <span style="color:var(--color-status-compliant); font-weight: bold;">PASS</span>
+                        </div>
+                        <div class="kpi-sparkline" id="spark-ph"></div>
+                        <div class="kpi-footer">
+                            <div class="kpi-timestamp">
+                                <span>Last Reading:</span>
+                                <strong>2026-08-30 14:00:00</strong>
+                            </div>
+                            <span data-tooltip="Last Calibration: 2026-08-25">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-status-compliant)" stroke-width="2">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                </svg>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- KPI 2: BOD -->
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <div class="kpi-title-block">
+                                <span class="kpi-param-name" data-tooltip="Biochemical Oxygen Demand">Effluent BOD</span>
+                                <span class="kpi-sensor-id">SN-BOD-02</span>
+                            </div>
+                            <span class="status-badge status-compliant">COMPLIANT</span>
+                        </div>
+                        <div class="kpi-body">
+                            <span class="kpi-reading">18.5</span>
+                            <span class="kpi-unit">mg/L</span>
+                        </div>
+                        <div class="kpi-limit">
+                            <span>Limit: &lt; 30.0 mg/L</span>
+                            <span style="color:var(--color-status-compliant); font-weight: bold;">PASS</span>
+                        </div>
+                        <div class="kpi-sparkline" id="spark-bod"></div>
+                        <div class="kpi-footer">
+                            <div class="kpi-timestamp">
+                                <span>Last Reading:</span>
+                                <strong>2026-08-30 14:00:00</strong>
+                            </div>
+                            <span data-tooltip="Last Calibration: 2026-08-20">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-status-warning)" stroke-width="2">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- KPI 3: COD -->
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <div class="kpi-title-block">
+                                <span class="kpi-param-name" data-tooltip="Chemical Oxygen Demand">Effluent COD</span>
+                                <span class="kpi-sensor-id">SN-COD-01</span>
+                            </div>
+                            <span class="status-badge status-compliant">COMPLIANT</span>
+                        </div>
+                        <div class="kpi-body">
+                            <span class="kpi-reading">145.2</span>
+                            <span class="kpi-unit">mg/L</span>
+                        </div>
+                        <div class="kpi-limit">
+                            <span>Limit: &lt; 250.0 mg/L</span>
+                            <span style="color:var(--color-status-compliant); font-weight: bold;">PASS</span>
+                        </div>
+                        <div class="kpi-sparkline" id="spark-cod"></div>
+                        <div class="kpi-footer">
+                            <div class="kpi-timestamp">
+                                <span>Last Reading:</span>
+                                <strong>2026-08-30 14:00:00</strong>
+                            </div>
+                            <span data-tooltip="Last Calibration: 2026-08-25">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-status-compliant)" stroke-width="2">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                </svg>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- KPI 4: TSS -->
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <div class="kpi-title-block">
+                                <span class="kpi-param-name" data-tooltip="Total Suspended Solids">Effluent TSS</span>
+                                <span class="kpi-sensor-id">SN-TSS-03</span>
+                            </div>
+                            <span class="status-badge status-violation">VIOLATION</span>
+                        </div>
+                        <div class="kpi-body">
+                            <span class="kpi-reading">110.8</span>
+                            <span class="kpi-unit">mg/L</span>
+                        </div>
+                        <div class="kpi-limit">
+                            <span>Limit: &lt; 100.0 mg/L</span>
+                            <span style="color:var(--color-status-violation); font-weight: bold;">FAIL</span>
+                        </div>
+                        <div class="kpi-sparkline" id="spark-tss"></div>
+                        <div class="kpi-footer">
+                            <div class="kpi-timestamp">
+                                <span>Last Reading:</span>
+                                <strong>2026-08-30 14:00:00</strong>
+                            </div>
+                            <span data-tooltip="Last Calibration: 2026-08-28">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-status-compliant)" stroke-width="2">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                </svg>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- KPI 5: NH3-N -->
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <div class="kpi-title-block">
+                                <span class="kpi-param-name" data-tooltip="Ammoniacal Nitrogen">NH3-N</span>
+                                <span class="kpi-sensor-id">SN-AMM-01</span>
+                            </div>
+                            <span class="status-badge status-warning">WARNING</span>
+                        </div>
+                        <div class="kpi-body">
+                            <span class="kpi-reading">45.2</span>
+                            <span class="kpi-unit">mg/L</span>
+                        </div>
+                        <div class="kpi-limit">
+                            <span>Limit: &lt; 50.0 mg/L</span>
+                            <span style="color:var(--color-status-warning); font-weight: bold;">MARGINAL</span>
+                        </div>
+                        <div class="kpi-sparkline" id="spark-amm"></div>
+                        <div class="kpi-footer">
+                            <div class="kpi-timestamp">
+                                <span>Last Reading:</span>
+                                <strong>2026-08-30 14:00:00</strong>
+                            </div>
+                            <span data-tooltip="Sensor Offline / Comms Loss">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-status-offline)" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                                </svg>
+                            </span>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+<!-- PASTE PART 2 HERE -->
+<!-- SECONDARY VOLUMETRIC KPIs -->
+            <section>
+                <h2 style="font-size: 1.1rem; text-transform: uppercase; margin-bottom: 16px; border-bottom: 2px solid var(--color-border-medium); padding-bottom: 8px;">
+                    Volumetric & Operational Permits
+                </h2>
+                
+                <div class="grid-row grid-cols-3" id="volumetric-kpi-grid">
+                    
+                    <!-- KPI: MLD -->
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <div class="kpi-title-block">
+                                <span class="kpi-param-name" data-tooltip="Millions of Liters per Day">Total Daily Discharge</span>
+                                <span class="kpi-sensor-id">FM-OUT-01</span>
+                            </div>
+                            <span class="status-badge status-compliant">WITHIN LIMITS</span>
+                        </div>
+                        <div class="kpi-body">
+                            <span class="kpi-reading" id="kpi-mld">1.24</span>
+                            <span class="kpi-unit">MLD</span>
+                        </div>
+                        <div class="kpi-limit">
+                            <span>Permit Max: 1.50 MLD</span>
+                        </div>
+                        <div class="kpi-sparkline" id="spark-mld"></div>
+                        <div class="kpi-footer">
+                            <div class="kpi-timestamp">
+                                <span>Accumulated For:</span>
+                                <strong>2026-08-30 (IST)</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KPI: Peak Flow -->
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <div class="kpi-title-block">
+                                <span class="kpi-param-name" data-tooltip="Maximum Instantaneous Flow">Peak Flow Rate</span>
+                                <span class="kpi-sensor-id">FM-OUT-01</span>
+                            </div>
+                            <span class="status-badge status-warning">MONITORING</span>
+                        </div>
+                        <div class="kpi-body">
+                            <span class="kpi-reading" id="kpi-peak">42.8</span>
+                            <span class="kpi-unit">L/s</span>
+                        </div>
+                        <div class="kpi-limit">
+                            <span>System Design Max: 50.0 L/s</span>
+                        </div>
+                        <div class="kpi-sparkline" id="spark-peak"></div>
+                        <div class="kpi-footer">
+                            <div class="kpi-timestamp">
+                                <span>Peak Timestamp:</span>
+                                <strong>2026-08-30 08:45:12</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KPI: Energy -->
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <div class="kpi-title-block">
+                                <span class="kpi-param-name" data-tooltip="Kilowatt-hours per MLD">Energy Intensity</span>
+                                <span class="kpi-sensor-id">PM-MAIN-01</span>
+                            </div>
+                            <span class="status-badge status-compliant">EFFICIENT</span>
+                        </div>
+                        <div class="kpi-body">
+                            <span class="kpi-reading" id="kpi-power">215</span>
+                            <span class="kpi-unit">kWh/MLD</span>
+                        </div>
+                        <div class="kpi-limit">
+                            <span>Efficiency Benchmark: &lt; 250 kWh</span>
+                        </div>
+                        <div class="kpi-sparkline" id="spark-power"></div>
+                        <div class="kpi-footer">
+                            <div class="kpi-timestamp">
+                                <span>Rolling 24h Average:</span>
+                                <strong>Updated Hourly</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- HISTORICAL PARAMETER TRENDS (ANALYTICS) -->
+            <section class="panel">
+                <div class="panel-header">
+                    <h3 class="panel-title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                        </svg>
+                        Historical Parameter Trends & Analytics
+                    </h3>
+                </div>
+                <div class="panel-body" style="display: flex; flex-direction: column; gap: 20px;">
+                    
+                    <!-- Chart Control Bar -->
+                    <div style="display: flex; flex-wrap: wrap; gap: 16px; background-color: var(--color-bg-alt); padding: 16px; border: 1px solid var(--color-border-light); border-radius: var(--radius-sm); align-items: flex-end;">
+                        
+                        <div class="form-group" style="flex: 1; min-width: 250px;">
+                            <label class="form-label" for="trend-parameter">Metric Selection</label>
+                            <select id="trend-parameter" class="form-control">
+                                <option value="ph">Effluent pH (Limit: 6.5–8.5)</option>
+                                <option value="bod">Effluent BOD (Limit: &lt; 30 mg/L)</option>
+                                <option value="cod">Effluent COD (Limit: &lt; 250 mg/L)</option>
+                                <option value="tss">Effluent TSS (Limit: &lt; 100 mg/L)</option>
+                                <option value="flow">Discharge Volume (MLD)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="start-date">Start Date</label>
+                            <input type="date" id="start-date" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="end-date">End Date</label>
+                            <input type="date" id="end-date" class="form-control">
+                        </div>
+
+                        <button class="btn-primary" id="btn-apply-filters" style="height: 38px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                            </svg>
+                            Apply Filters
+                        </button>
+                    </div>
+
+                    <!-- Chart.js Canvas Container -->
+                    <div style="width: 100%; height: 400px; border: 1px solid var(--color-border-medium); border-radius: var(--radius-sm); background-color: var(--color-bg-surface); padding: 16px;">
+                        <canvas id="auditChart"></canvas>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- AUDIT LOGS & EXPORT ROW -->
+            <section style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+                
+                <!-- LEFT COLUMN: TABBED AUDIT TABLES -->
+                <div class="panel">
+                    <div class="panel-header" style="padding: 0; border-bottom: none; background: transparent;">
+                        <div style="display: flex; width: 100%; border-bottom: 2px solid var(--color-gov-navy);">
+                            <button id="tab-btn-violations" class="audit-tab-btn active-tab" style="flex: 1; padding: 16px; background: var(--color-bg-surface); color: var(--color-gov-navy); border: 1px solid var(--color-border-medium); border-bottom: none; border-top: 4px solid var(--color-gov-navy); font-weight: 700; text-transform: uppercase; font-size: 0.85rem; cursor: pointer; transition: all var(--transition-speed);">
+                                Effluent Violations
+                            </button>
+                            <button id="tab-btn-overrides" class="audit-tab-btn" style="flex: 1; padding: 16px; background: var(--color-bg-alt); color: var(--color-text-secondary); border: 1px solid var(--color-border-medium); border-bottom: none; border-top: 4px solid transparent; font-weight: 700; text-transform: uppercase; font-size: 0.85rem; cursor: pointer; transition: all var(--transition-speed);">
+                                Operator Overrides
+                            </button>
+                            <button id="tab-btn-faults" class="audit-tab-btn" style="flex: 1; padding: 16px; background: var(--color-bg-alt); color: var(--color-text-secondary); border: 1px solid var(--color-border-medium); border-bottom: none; border-top: 4px solid transparent; font-weight: 700; text-transform: uppercase; font-size: 0.85rem; cursor: pointer; transition: all var(--transition-speed);">
+                                Sensor Faults
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="panel-body" style="padding: 0; overflow: hidden; height: 350px;">
+                        
+                        <!-- Tab 1: Violations Table -->
+                        <div id="tab-content-violations" class="audit-tab-content" style="display: block; height: 100%; overflow-y: auto;">
+                            <div class="reg-table-container" style="border: none;">
+                                <table class="reg-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Timestamp (IST)</th>
+                                            <th>Parameter</th>
+                                            <th>Recorded Value</th>
+                                            <th>Prescribed Limit</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbl-violations-body">
+                                        <tr>
+                                            <td style="font-family: var(--font-family-mono); font-size: 0.8rem;">2026-08-30 10:15:00</td>
+                                            <td style="font-weight: 700; color: var(--color-status-violation);">Effluent TSS</td>
+                                            <td style="font-family: var(--font-family-mono); font-weight: 700;">110.8 mg/L</td>
+                                            <td style="color: var(--color-text-muted);">&lt; 100.0 mg/L</td>
+                                            <td><span class="status-badge status-violation">EXCEEDED</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td style="font-family: var(--font-family-mono); font-size: 0.8rem;">2026-08-28 18:40:00</td>
+                                            <td style="font-weight: 700; color: var(--color-status-violation);">Effluent pH</td>
+                                            <td style="font-family: var(--font-family-mono); font-weight: 700;">8.82 pH</td>
+                                            <td style="color: var(--color-text-muted);">6.5 - 8.5 pH</td>
+                                            <td><span class="status-badge status-violation">EXCEEDED</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td style="font-family: var(--font-family-mono); font-size: 0.8rem;">2026-08-26 04:20:00</td>
+                                            <td style="font-weight: 700; color: var(--color-status-violation);">Effluent BOD</td>
+                                            <td style="font-family: var(--font-family-mono); font-weight: 700;">34.2 mg/L</td>
+                                            <td style="color: var(--color-text-muted);">&lt; 30.0 mg/L</td>
+                                            <td><span class="status-badge status-violation">EXCEEDED</span></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Tab 2: Overrides Table -->
+                        <div id="tab-content-overrides" class="audit-tab-content" style="display: none; height: 100%; overflow-y: auto;">
+                            <div class="reg-table-container" style="border: none;">
+                                <table class="reg-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Timestamp (IST)</th>
+                                            <th>Actuator / Setpoint</th>
+                                            <th>Operator ID</th>
+                                            <th>Action Taken</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbl-overrides-body">
+                                        <tr>
+                                            <td style="font-family: var(--font-family-mono); font-size: 0.8rem;">2026-08-30 09:42:12</td>
+                                            <td style="font-weight: 700;">Decant Valve [V-103]</td>
+                                            <td style="font-family: var(--font-family-mono); font-weight: 700; color: var(--color-gov-accent);">OP-2465554</td>
+                                            <td>Forced Open (Manual Override)</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="font-family: var(--font-family-mono); font-size: 0.8rem;">2026-08-29 14:15:00</td>
+                                            <td style="font-weight: 700;">Blower 1 VFD Speed</td>
+                                            <td style="font-family: var(--font-family-mono); font-weight: 700; color: var(--color-gov-accent);">OP-1102941</td>
+                                            <td>Adjusted setpoint from 60.0% to 75.0%</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="font-family: var(--font-family-mono); font-size: 0.8rem;">2026-08-28 22:10:00</td>
+                                            <td style="font-weight: 700;">Transfer Pump 1</td>
+                                            <td style="font-family: var(--font-family-mono); font-weight: 700; color: var(--color-gov-accent);">OP-2465554</td>
+                                            <td>Manual Start during High EQ level</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Tab 3: Sensor Faults Table -->
+                        <div id="tab-content-faults" class="audit-tab-content" style="display: none; height: 100%; overflow-y: auto;">
+                            <div class="reg-table-container" style="border: none;">
+                                <table class="reg-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Timestamp (IST)</th>
+                                            <th>Sensor Tag</th>
+                                            <th>Event Description</th>
+                                            <th>Resolution / Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbl-faults-body">
+                                        <tr>
+                                            <td style="font-family: var(--font-family-mono); font-size: 0.8rem;">2026-08-30 01:15:00</td>
+                                            <td style="font-family: var(--font-family-mono); font-weight: 700;">SN-TSS-03</td>
+                                            <td>Zero-Point Drift Calibration Routine</td>
+                                            <td><span class="status-badge status-compliant">PASSED (SLOPE: 0.992)</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td style="font-family: var(--font-family-mono); font-size: 0.8rem;">2026-08-29 06:00:00</td>
+                                            <td style="font-family: var(--font-family-mono); font-weight: 700;">SN-PH-01</td>
+                                            <td>2-Point Buffer Cal (pH 4.0 / 7.0)</td>
+                                            <td><span class="status-badge status-compliant">PASSED (SLOPE: 98.4%)</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td style="font-family: var(--font-family-mono); font-size: 0.8rem;">2026-08-27 14:22:10</td>
+                                            <td style="font-family: var(--font-family-mono); font-weight: 700;">SN-AMM-01</td>
+                                            <td style="color: var(--color-status-violation); font-weight: 700;">Communication Loss (Timeout)</td>
+                                            <td><span class="status-badge status-warning">OFFLINE / PENDING</span></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- RIGHT COLUMN: EXPORT PANEL -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3 class="panel-title">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="10 9 9 9 8 9"></polyline>
+                            </svg>
+                            Statutory Report Generator
+                        </h3>
+                    </div>
+                    
+                    <div class="panel-body" style="display: flex; flex-direction: column; justify-content: space-between;">
+                        
+                        <div>
+                            <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 20px; line-height: 1.5;">
+                                Select the ledger records to compile into an immutable, cryptographically signed export package. This CSV ledger is legally admissible.
+                            </p>
+
+                            <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+                                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                                    <input type="checkbox" id="chk-telemetry" checked style="width: 16px; height: 16px; accent-color: var(--color-gov-blue);">
+                                    <span style="font-size: 0.9rem; font-weight: 600;">24-Hour Continuous Telemetry</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                                    <input type="checkbox" id="chk-violations" checked style="width: 16px; height: 16px; accent-color: var(--color-gov-blue);">
+                                    <span style="font-size: 0.9rem; font-weight: 600;">Effluent Exceedance Logs</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                                    <input type="checkbox" id="chk-overrides" checked style="width: 16px; height: 16px; accent-color: var(--color-gov-blue);">
+                                    <span style="font-size: 0.9rem; font-weight: 600;">Operator Override Ledger</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                                    <input type="checkbox" id="chk-calibrations" checked style="width: 16px; height: 16px; accent-color: var(--color-gov-blue);">
+                                    <span style="font-size: 0.9rem; font-weight: 600;">Sensor Calibration Certificates</span>
+                                </label>
+                            </div>
+
+                            <div style="background-color: var(--color-bg-alt); border: 1px solid var(--color-border-medium); border-left: 3px solid var(--color-gov-navy); padding: 12px; border-radius: var(--radius-sm); margin-bottom: 24px;">
+                                <div style="font-size: 0.75rem; color: var(--color-text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Digital Signature Verification</div>
+                                <div style="font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px;">
+                                    <span><strong>Signer Identity:</strong> <span id="signer-id">AUD-XXXX</span></span>
+                                    <span><strong>Hashing Algorithm:</strong> SHA-256 Digest Token</span>
+                                    <span style="color: var(--color-status-compliant); font-weight: 700; display: flex; align-items: center; gap: 4px; margin-top: 4px;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                        </svg>
+                                        Valid Certificate
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary" id="btn-export-csv" style="width: 100%; justify-content: center; padding: 14px; font-size: 0.95rem;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            DIGITALLY SIGN & EXPORT CSV
+                        </button>
+
+                    </div>
+                </div>
+
+            </section>
+
+        </main>
+    </div>
+
+<!-- PASTE PART 3 HERE -->
+ <!-- ==========================================================================
+         PART 3: CORE APPLICATION LOGIC, SECURITY, AND VISUALIZATION ENGINES
+         ========================================================================== -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            /* ==========================================================================
+               1. SYSTEM CONSTANTS & UTILITY FUNCTIONS
+               ========================================================================== */
+            
+            const DOM = {
+                authAuditorId: document.getElementById('auth-auditor-id'),
+                signerId: document.getElementById('signer-id'),
+                btnLogout: document.getElementById('btn-logout'),
+                globalFacility: document.getElementById('global-facility'),
+                serverTime: document.getElementById('server-time'),
+                
+                // CTO Elements
+                ctoStatus: document.getElementById('cto-status'),
+                ctoLicense: document.getElementById('cto-license'),
+                ctoExpiry: document.getElementById('cto-expiry'),
+                ctoMld: document.getElementById('cto-mld'),
+                
+                // Primary KPI Elements
+                kpiPh: document.getElementById('kpi-ph'),
+                badgePh: document.getElementById('badge-ph'),
+                sparkPh: document.getElementById('spark-ph'),
+                
+                kpiBod: document.getElementById('kpi-bod'),
+                badgeBod: document.getElementById('badge-bod'),
+                sparkBod: document.getElementById('spark-bod'),
+                
+                kpiCod: document.getElementById('kpi-cod'),
+                badgeCod: document.getElementById('badge-cod'),
+                sparkCod: document.getElementById('spark-cod'),
+                
+                kpiTss: document.getElementById('kpi-tss'),
+                badgeTss: document.getElementById('badge-tss'),
+                sparkTss: document.getElementById('spark-tss'),
+                
+                // Secondary KPI Elements
+                kpiMld: document.getElementById('kpi-mld'),
+                badgeMld: document.getElementById('badge-mld'),
+                sparkMld: document.getElementById('spark-mld'),
+                
+                kpiPeak: document.getElementById('kpi-peak'),
+                sparkPeak: document.getElementById('spark-peak'),
+                
+                kpiPower: document.getElementById('kpi-power'),
+                sparkPower: document.getElementById('spark-power'),
+                
+                // Chart Controls
+                trendParameter: document.getElementById('trend-parameter'),
+                startDate: document.getElementById('start-date'),
+                endDate: document.getElementById('end-date'),
+                btnApplyFilters: document.getElementById('btn-apply-filters'),
+                auditChartCanvas: document.getElementById('auditChart')
+            };
+
+            /**
+             * Generates a random float within a specific range
+             * @param {number} min - Minimum value
+             * @param {number} max - Maximum value
+             * @returns {number} Random float
+             */
+            function getRandomFloat(min, max) {
+                return (Math.random() * (max - min) + min);
+            }
+
+            /**
+             * Formats a date object to YYYY-MM-DD HH:MM:SS
+             * @param {Date} date - Date object
+             * @returns {string} Formatted string
+             */
+            function formatDateTime(date) {
+                const pad = (n) => String(n).padStart(2, '0');
+                const yyyy = date.getFullYear();
+                const mm = pad(date.getMonth() + 1);
+                const dd = pad(date.getDate());
+                const hh = pad(date.getHours());
+                const mins = pad(date.getMinutes());
+                const ss = pad(date.getSeconds());
+                return `${yyyy}-${mm}-${dd} ${hh}:${mins}:${ss}`;
+            }
+
+            // Real-time server clock simulation
+            if (DOM.serverTime) {
+                setInterval(function() {
+                    DOM.serverTime.innerText = formatDateTime(new Date());
+                }, 1000);
+            }
+
+
+            /* ==========================================================================
+               2. FIREBASE AUTHENTICATION & SECURITY ENFORCEMENT
+               ========================================================================== */
+            
+            const firebaseConfig = {
+                apiKey: "AIzaSyA_cflBLHqk7L46KZ8mAy7RKYm995DU3vc",
+                authDomain: "sbr-scada-platform.firebaseapp.com",
+                databaseURL: "https://sbr-scada-platform-default-rtdb.asia-southeast1.firebasedatabase.app",
+                projectId: "sbr-scada-platform",
+                storageBucket: "sbr-scada-platform.firebasestorage.app",
+                messagingSenderId: "1010717791850",
+                appId: "1:1010717791850:web:9e0d872b95df14b8ad5c13"
+            };
+
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            
+            const auth = firebase.auth();
+            const db = firebase.database();
+
+            /**
+             * Strict Identity Verification Protocol
+             * Enforces @sbr.local domain and verifies role in Realtime Database.
+             */
+            auth.onAuthStateChanged(function(user) {
+                if (!user) {
+                    console.warn("Security Event: Unauthenticated access attempt. Redirecting.");
+                    window.location.href = 'aud-auth-hq-b4v2.html';
+                    return;
+                }
+
+                if (!user.email || !user.email.endsWith('@sbr.local')) {
+                    console.warn("Security Event: Invalid domain credential. Purging session.");
+                    auth.signOut().then(function() {
+                        window.location.href = 'aud-auth-hq-b4v2.html';
+                    });
+                    return;
+                }
+
+                // Verify specific auditor role in database
+                db.ref('users/' + user.uid).once('value').then(function(snapshot) {
+                    if (snapshot.exists() && snapshot.val().role === 'auditor') {
+                        // Authorized: Parse and inject ID into DOM
+                        const parsedAuditorId = user.email.split('@')[0].toUpperCase();
+                        
+                        if (DOM.authAuditorId) {
+                            DOM.authAuditorId.innerText = parsedAuditorId;
+                        }
+                        if (DOM.signerId) {
+                            DOM.signerId.innerText = parsedAuditorId;
+                        }
+                        console.info("Security Event: Auditor session established for " + parsedAuditorId);
+                    } else {
+                        // Unauthorized Role
+                        console.error("Security Event: User lacks auditor privileges. Terminating.");
+                        auth.signOut().then(function() {
+                            window.location.href = 'aud-auth-hq-b4v2.html';
+                        });
+                    }
+                }).catch(function(error) {
+                    console.error("Database Validation Failure:", error);
+                    window.location.href = 'aud-auth-hq-b4v2.html';
+                });
+            });
+
+            // Bind Secure Logout Sequence
+            if (DOM.btnLogout) {
+                DOM.btnLogout.addEventListener('click', function() {
+                    auth.signOut().then(function() {
+                        window.location.href = 'aud-auth-hq-b4v2.html';
+                    });
+                });
+            }
+
+
+            /* ==========================================================================
+               3. FACILITY STATE MANAGER & MOCK DATA ENGINE
+               ========================================================================== */
+
+            /**
+             * Comprehensive Facility Regulatory Database
+             * Contains static license info and base ranges for random generation.
+             */
+            const facilityRegDB = {
+                "SBR-BLR-001": {
+                    cto: {
+                        status: "VALID",
+                        licenseNo: "KSPCB/CTO/2026/8821",
+                        expiry: "2027-12-31",
+                        mldAuth: "1.50 MLD",
+                        badgeClass: "status-compliant"
+                    },
+                    metrics: {
+                        ph: { base: 7.2, variance: 0.3, limit: 8.5 },
+                        bod: { base: 18.5, variance: 5.0, limit: 30.0 },
+                        cod: { base: 145.0, variance: 20.0, limit: 250.0 },
+                        tss: { base: 95.0, variance: 25.0, limit: 100.0 }, // Intentional occasional violation
+                        mld: { base: 1.2, variance: 0.1, limit: 1.5 },
+                        peak: { base: 42.0, variance: 5.0, limit: 50.0 },
+                        power: { base: 215, variance: 15, limit: 250 }
+                    }
+                },
+                "SBR-PUN-042": {
+                    cto: {
+                        status: "VALID",
+                        licenseNo: "MPCB/CTO/2025/4492",
+                        expiry: "2028-03-31",
+                        mldAuth: "5.00 MLD",
+                        badgeClass: "status-compliant"
+                    },
+                    metrics: {
+                        ph: { base: 7.6, variance: 0.2, limit: 8.5 },
+                        bod: { base: 12.0, variance: 3.0, limit: 30.0 },
+                        cod: { base: 110.0, variance: 15.0, limit: 250.0 },
+                        tss: { base: 45.0, variance: 10.0, limit: 100.0 },
+                        mld: { base: 3.8, variance: 0.4, limit: 5.0 },
+                        peak: { base: 112.0, variance: 15.0, limit: 150.0 },
+                        power: { base: 195, variance: 10, limit: 250 }
+                    }
+                },
+                "SBR-DEL-019": {
+                    cto: {
+                        status: "EXPIRED",
+                        licenseNo: "DPCC/CTO/2022/1004",
+                        expiry: "2025-12-31",
+                        mldAuth: "10.00 MLD",
+                        badgeClass: "status-violation"
+                    },
+                    metrics: {
+                        ph: { base: 8.7, variance: 0.4, limit: 8.5 }, // Consistent violation
+                        bod: { base: 45.0, variance: 8.0, limit: 30.0 }, // Consistent violation
+                        cod: { base: 310.0, variance: 40.0, limit: 250.0 }, // Consistent violation
+                        tss: { base: 150.0, variance: 35.0, limit: 100.0 }, // Consistent violation
+                        mld: { base: 11.5, variance: 0.5, limit: 10.0 }, // Violation
+                        peak: { base: 420.0, variance: 30.0, limit: 400.0 }, // Violation
+                        power: { base: 280, variance: 20, limit: 250 } // Violation
+                    }
+                }
+            };
+
+            /**
+             * Generates an SVG sparkline string to replace placeholders
+             * @param {Array<number>} data - Array of numeric data points
+             * @param {string} color - Hex color for the stroke
+             * @returns {string} Raw SVG string
+             */
+            function generateSparklineSVG(data, color) {
+                if (!data || data.length === 0) return '';
+                const width = 200;
+                const height = 40;
+                const min = Math.min(...data);
+                const max = Math.max(...data);
+                const range = max - min === 0 ? 1 : max - min;
+                
+                const points = data.map((val, i) => {
+                    const x = (i / (data.length - 1)) * width;
+                    // Invert Y because SVG coordinates start top-left
+                    const y = height - (((val - min) / range) * height * 0.8) - (height * 0.1); 
+                    return `${x.toFixed(1)},${y.toFixed(1)}`;
+                }).join(' ');
+
+                return `<svg width="100%" height="100%" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+                            <polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+                        </svg>`;
+            }
+
+            /**
+             * Evaluates a metric against its limit to determine compliance status
+             */
+            function evaluateCompliance(value, limit, isMinRange = false) {
+                if (isMinRange) {
+                    // E.g., pH must be >= 6.5 and <= 8.5
+                    if (value < 6.5 || value > limit) return { text: "VIOLATION", class: "status-violation", color: "var(--color-status-violation)" };
+                    return { text: "COMPLIANT", class: "status-compliant", color: "var(--color-status-compliant)" };
+                }
+                
+                if (value > limit) {
+                    return { text: "VIOLATION", class: "status-violation", color: "var(--color-status-violation)" };
+                }
+                
+                // Add warning threshold (within 10% of limit)
+                if (value > (limit * 0.9)) {
+                    return { text: "WARNING", class: "status-warning", color: "var(--color-status-warning)" };
+                }
+                
+                return { text: "COMPLIANT", class: "status-compliant", color: "var(--color-status-compliant)" };
+            }
+
+            /**
+             * Main routine to transition the DOM to a new facility's data
+             * @param {string} facilityId - The selected facility ID
+             */
+            function switchFacilityContext(facilityId) {
+                const fData = facilityRegDB[facilityId];
+                if (!fData) return;
+
+                // 1. Update CTO License Pane
+                if (DOM.ctoStatus) {
+                    DOM.ctoStatus.innerText = fData.cto.status;
+                    DOM.ctoStatus.className = `status-badge ${fData.cto.badgeClass}`;
+                }
+                if (DOM.ctoLicense) DOM.ctoLicense.innerText = fData.cto.licenseNo;
+                if (DOM.ctoExpiry) DOM.ctoExpiry.innerText = fData.cto.expiry;
+                if (DOM.ctoMld) DOM.ctoMld.innerText = fData.cto.mldAuth;
+
+                // 2. Generate Random KPI Values based on Facility Baseline
+                const kpis = {
+                    ph: getRandomFloat(fData.metrics.ph.base - fData.metrics.ph.variance, fData.metrics.ph.base + fData.metrics.ph.variance),
+                    bod: getRandomFloat(fData.metrics.bod.base - fData.metrics.bod.variance, fData.metrics.bod.base + fData.metrics.bod.variance),
+                    cod: getRandomFloat(fData.metrics.cod.base - fData.metrics.cod.variance, fData.metrics.cod.base + fData.metrics.cod.variance),
+                    tss: getRandomFloat(fData.metrics.tss.base - fData.metrics.tss.variance, fData.metrics.tss.base + fData.metrics.tss.variance),
+                    mld: getRandomFloat(fData.metrics.mld.base - fData.metrics.mld.variance, fData.metrics.mld.base + fData.metrics.mld.variance),
+                    peak: getRandomFloat(fData.metrics.peak.base - fData.metrics.peak.variance, fData.metrics.peak.base + fData.metrics.peak.variance),
+                    power: Math.floor(getRandomFloat(fData.metrics.power.base - fData.metrics.power.variance, fData.metrics.power.base + fData.metrics.power.variance))
+                };
+
+                // 3. Evaluate Compliance and Update Primary DOM Elements
+                const updatePrimaryKPI = (val, domVal, domBadge, domSpark, limit, isMin = false) => {
+                    if (!domVal || !domBadge || !domSpark) return;
+                    
+                    const compliance = evaluateCompliance(val, limit, isMin);
+                    domVal.innerText = val.toFixed(1);
+                    domBadge.innerText = compliance.text;
+                    domBadge.className = `status-badge ${compliance.class}`;
+                    
+                    // Generate array of 12 historical points for sparkline
+                    const sparkData = Array.from({length: 12}, () => getRandomFloat(val - (val*0.1), val + (val*0.1)));
+                    sparkData.push(val); // Final point is current value
+                    domSpark.innerHTML = generateSparklineSVG(sparkData, compliance.color);
+                    domSpark.style.border = 'none'; // Clean up placeholder border
+                    domSpark.style.background = 'transparent';
+                };
+
+                updatePrimaryKPI(kpis.ph, DOM.kpiPh, DOM.badgePh, DOM.sparkPh, fData.metrics.ph.limit, true);
+                updatePrimaryKPI(kpis.bod, DOM.kpiBod, DOM.badgeBod, DOM.sparkBod, fData.metrics.bod.limit);
+                updatePrimaryKPI(kpis.cod, DOM.kpiCod, DOM.badgeCod, DOM.sparkCod, fData.metrics.cod.limit);
+                updatePrimaryKPI(kpis.tss, DOM.kpiTss, DOM.badgeTss, DOM.sparkTss, fData.metrics.tss.limit);
+
+                // 4. Update Secondary Volumetric Elements
+                const updateSecondaryKPI = (val, domVal, domBadge, domSpark, limit, isDecimal = true) => {
+                    if (!domVal || !domSpark) return;
+                    
+                    const compliance = evaluateCompliance(val, limit);
+                    domVal.innerText = isDecimal ? val.toFixed(2) : val;
+                    if (domBadge) {
+                        domBadge.innerText = compliance.text;
+                        domBadge.className = `status-badge ${compliance.class}`;
+                    }
+                    
+                    const sparkData = Array.from({length: 12}, () => getRandomFloat(val - (val*0.05), val + (val*0.05)));
+                    sparkData.push(val);
+                    domSpark.innerHTML = generateSparklineSVG(sparkData, compliance.color);
+                    domSpark.style.border = 'none';
+                    domSpark.style.background = 'transparent';
+                };
+
+                updateSecondaryKPI(kpis.mld, DOM.kpiMld, DOM.badgeMld, DOM.sparkMld, fData.metrics.mld.limit);
+                updateSecondaryKPI(kpis.peak, DOM.kpiPeak, null, DOM.sparkPeak, fData.metrics.peak.limit);
+                updateSecondaryKPI(kpis.power, DOM.kpiPower, null, DOM.sparkPower, fData.metrics.power.limit, false);
+            }
+
+            // Bind global facility selector event listener
+            if (DOM.globalFacility) {
+                DOM.globalFacility.addEventListener('change', function(e) {
+                    switchFacilityContext(e.target.value);
+                });
+                // Initialize default state on load
+                switchFacilityContext(DOM.globalFacility.value);
+            }
+
+
+            /* ==========================================================================
+               4. CHART.JS ENGINE & ANALYTICS INTEGRATION
+               ========================================================================== */
+            
+            let globalChartInstance = null;
+
+            // Initialize Date Controls
+            if (DOM.startDate && DOM.endDate) {
+                const endD = new Date();
+                const startD = new Date();
+                startD.setDate(endD.getDate() - 30); // Default 30 day review period
+                
+                DOM.endDate.value = endD.toISOString().split('T')[0];
+                DOM.startDate.value = startD.toISOString().split('T')[0];
+            }
+
+            /**
+             * Generates a date array between two date strings
+             * @param {string} startStr - YYYY-MM-DD
+             * @param {string} endStr - YYYY-MM-DD
+             * @returns {Array<string>} Array of date labels
+             */
+            function buildTimelineLabels(startStr, endStr) {
+                const labels = [];
+                let current = new Date(startStr);
+                const end = new Date(endStr);
+                
+                // Safe-guard against reversed dates
+                if (current > end) return [startStr];
+                
+                // Limit maximum iterations to prevent browser lockup (e.g., max 365 days)
+                let iterations = 0;
+                while (current <= end && iterations < 365) {
+                    labels.push(current.toISOString().split('T')[0]);
+                    current.setDate(current.getDate() + 1);
+                    iterations++;
+                }
+                return labels;
+            }
+
+            /**
+             * Generates the primary analytical chart
+             * @param {string} metricKey - Selection from dropdown
+             * @param {string} startStr - Start date
+             * @param {string} endStr - End date
+             */
+            function updateChart(metricKey, startStr, endStr) {
+                if (!DOM.auditChartCanvas) return;
+
+                const facilityId = DOM.globalFacility.value;
+                const fData = facilityRegDB[facilityId];
+                if (!fData || !fData.metrics[metricKey]) return;
+
+                const metricDef = fData.metrics[metricKey];
+                const labels = buildTimelineLabels(startStr, endStr);
+                
+                // Generate chronological data array
+                const dataPoints = labels.map(() => {
+                    let val = getRandomFloat(metricDef.base - metricDef.variance, metricDef.base + metricDef.variance);
+                    return parseFloat(Math.max(0, val).toFixed(2)); // Prevent negatives
+                });
+
+                // Chart configurations based on metric
+                const configMaps = {
+                    ph: { title: "Effluent pH over Time", yMin: 6.0, yMax: 9.0 },
+                    bod: { title: "Effluent BOD Demand (mg/L)", yMin: 0, yMax: metricDef.limit * 1.5 },
+                    cod: { title: "Effluent COD Demand (mg/L)", yMin: 0, yMax: metricDef.limit * 1.5 },
+                    tss: { title: "Effluent TSS (mg/L)", yMin: 0, yMax: metricDef.limit * 1.5 },
+                    flow: { title: "Daily Discharge Volume (MLD)", yMin: 0, yMax: metricDef.limit * 1.5 }
+                };
+
+                const currentConfig = configMaps[metricKey];
+
+                // Destroy existing instance to prevent memory leaks and visual ghosting
+                if (globalChartInstance) {
+                    globalChartInstance.destroy();
+                }
+
+                // Strictly styled Chart.js Instantiation
+                const ctx = DOM.auditChartCanvas.getContext('2d');
+                globalChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: currentConfig.title,
+                            data: dataPoints,
+                            borderColor: 'var(--color-gov-accent)', // 2563eb
+                            backgroundColor: 'rgba(37, 99, 235, 0.05)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.3, // Smooth curve for professional analytics look
+                            pointBackgroundColor: 'var(--color-bg-surface)',
+                            pointBorderColor: 'var(--color-gov-navy)',
+                            pointRadius: 3,
+                            pointHoverRadius: 6,
+                            pointHoverBackgroundColor: 'var(--color-gov-accent)'
+                        },
+                        {
+                            // Regulatory Limit Line (Straight horizontal line)
+                            label: 'Statutory Limit',
+                            data: Array(labels.length).fill(metricDef.limit),
+                            borderColor: 'var(--color-status-violation)', // Red line
+                            borderWidth: 2,
+                            borderDash: [5, 5], // Dashed line
+                            fill: false,
+                            pointRadius: 0,
+                            tension: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        scales: {
+                            y: {
+                                min: currentConfig.yMin,
+                                max: currentConfig.yMax,
+                                grid: {
+                                    color: 'var(--color-border-light)',
+                                    drawBorder: true,
+                                    borderColor: 'var(--color-gov-navy)'
+                                },
+                                ticks: {
+                                    font: { family: 'Consolas', size: 11 },
+                                    color: 'var(--color-gov-navy)'
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false,
+                                    drawBorder: true,
+                                    borderColor: 'var(--color-gov-navy)'
+                                },
+                                ticks: {
+                                    font: { family: 'Consolas', size: 11 },
+                                    color: 'var(--color-gov-navy)',
+                                    maxTicksLimit: 15
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    font: { family: 'Arial', weight: 'bold', size: 12 },
+                                    color: 'var(--color-gov-navy)',
+                                    usePointStyle: true,
+                                    boxWidth: 8
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'var(--color-gov-navy)',
+                                titleFont: { family: 'Arial', size: 13 },
+                                bodyFont: { family: 'Consolas', size: 12 },
+                                padding: 10,
+                                cornerRadius: 4,
+                                displayColors: true
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Bind Chart Filter Controls
+            if (DOM.btnApplyFilters) {
+                DOM.btnApplyFilters.addEventListener('click', function() {
+                    const p = DOM.trendParameter.value;
+                    const s = DOM.startDate.value;
+                    const e = DOM.endDate.value;
+
+                    if (new Date(s) > new Date(e)) {
+                        alert("Validation Error: Start Date cannot be temporally subsequent to End Date.");
+                        return;
+                    }
+                    updateChart(p, s, e);
+                });
+            }
+
+            // Initialize default chart on load
+            if (DOM.trendParameter && DOM.startDate && DOM.endDate) {
+                updateChart(DOM.trendParameter.value, DOM.startDate.value, DOM.endDate.value);
+            }
+/* ==========================================================================
+               5. TAB SWITCHING LOGIC (AUDIT TABLES)
+               ========================================================================== */
+            
+            const tabBtns = {
+                violations: document.getElementById('tab-btn-violations'),
+                overrides: document.getElementById('tab-btn-overrides'),
+                faults: document.getElementById('tab-btn-faults')
+            };
+
+            const tabContents = {
+                violations: document.getElementById('tab-content-violations'),
+                overrides: document.getElementById('tab-content-overrides'),
+                faults: document.getElementById('tab-content-faults')
+            };
+
+            function switchAuditTab(targetTab) {
+                // Hide all contents and reset button styles
+                Object.keys(tabBtns).forEach(function(key) {
+                    if (tabBtns[key]) {
+                        tabBtns[key].classList.remove('active-tab');
+                        tabBtns[key].style.borderTopColor = 'transparent';
+                        tabBtns[key].style.color = 'var(--color-text-secondary)';
+                        tabBtns[key].style.background = 'var(--color-bg-alt)';
+                    }
+                    if (tabContents[key]) {
+                        tabContents[key].style.display = 'none';
+                    }
+                });
+
+                // Highlight and show the targeted tab
+                if (tabBtns[targetTab]) {
+                    tabBtns[targetTab].classList.add('active-tab');
+                    tabBtns[targetTab].style.borderTopColor = 'var(--color-gov-navy)';
+                    tabBtns[targetTab].style.color = 'var(--color-gov-navy)';
+                    tabBtns[targetTab].style.background = 'var(--color-bg-surface)';
+                }
+                if (tabContents[targetTab]) {
+                    tabContents[targetTab].style.display = 'block';
+                }
+            }
+
+            // Bind click events
+            if (tabBtns.violations) {
+                tabBtns.violations.addEventListener('click', function() { switchAuditTab('violations'); });
+            }
+            if (tabBtns.overrides) {
+                tabBtns.overrides.addEventListener('click', function() { switchAuditTab('overrides'); });
+            }
+            if (tabBtns.faults) {
+                tabBtns.faults.addEventListener('click', function() { switchAuditTab('faults'); });
+            }
+
+
+            /* ==========================================================================
+               6. ENTERPRISE CSV GENERATOR & DIGITAL EXPORT
+               ========================================================================== */
+               
+            const btnExportCsv = document.getElementById('btn-export-csv');
+            const chkTelemetry = document.getElementById('chk-telemetry');
+            const chkViolations = document.getElementById('chk-violations');
+            const chkOverrides = document.getElementById('chk-overrides');
+            const chkCalibrations = document.getElementById('chk-calibrations');
+
+            if (btnExportCsv) {
+                btnExportCsv.addEventListener('click', function() {
+                    
+                    // UX Feedback: Prevent multiple clicks and show processing state
+                    const originalHTML = btnExportCsv.innerHTML;
+                    btnExportCsv.disabled = true;
+                    btnExportCsv.style.cursor = 'wait';
+                    btnExportCsv.style.backgroundColor = 'var(--color-text-muted)';
+                    btnExportCsv.innerText = 'GENERATING SECURE EXCEL LEDGER...';
+
+                    // Simulate cryptographic digest delay
+                    setTimeout(function() {
+                        
+                        // Collect Header Metadata
+                        const facilitySelect = document.getElementById('global-facility');
+                        const facilityId = facilitySelect ? facilitySelect.value : 'UNKNOWN_FACILITY';
+                        const facilityName = facilitySelect ? facilitySelect.options[facilitySelect.selectedIndex].text : 'Unknown';
+                        
+                        const ctoLicenseEl = document.getElementById('cto-license');
+                        const licenseNo = ctoLicenseEl ? ctoLicenseEl.innerText : 'N/A';
+                        
+                        const auditorIdEl = document.getElementById('auth-auditor-id');
+                        const auditorId = auditorIdEl ? auditorIdEl.innerText : 'AUD-UNKNOWN';
+                        
+                        const timestamp = new Date().toISOString();
+                        
+                        // Mock SHA-256 Digest Token Generation
+                        const hexChars = "0123456789abcdef";
+                        let mockSha256 = "";
+                        for (let i = 0; i < 64; i++) {
+                            mockSha256 += hexChars[Math.floor(Math.random() * 16)];
+                        }
+
+                        // Begin constructing the HTML Excel content
+                        let xlsContent = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:x='urn:schemas-microsoft-com:office:excel' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body><table border='1' style='border-collapse: collapse; font-family: Arial, sans-serif;'>";
+                        
+                        // Main Header
+                        xlsContent += "<tr><td colspan='6' style='background-color: #003366; color: #ffffff; font-weight: bold; text-align: center; font-size: 14pt; padding: 10px;'>OFFICIAL ENVIRONMENTAL COMPLIANCE AUDIT REPORT</td></tr>";
+                        
+                        // Metadata Block
+                        xlsContent += "<tr><td colspan='2' style='font-weight: bold; background-color: #f0f0f0; padding: 5px;'>Facility ID:</td><td colspan='4' style='padding: 5px;'>" + facilityId + "</td></tr>";
+                        xlsContent += "<tr><td colspan='2' style='font-weight: bold; background-color: #f0f0f0; padding: 5px;'>Facility Name:</td><td colspan='4' style='padding: 5px;'>" + facilityName + "</td></tr>";
+                        xlsContent += "<tr><td colspan='2' style='font-weight: bold; background-color: #f0f0f0; padding: 5px;'>CTO License No:</td><td colspan='4' style='padding: 5px;'>" + licenseNo + "</td></tr>";
+                        xlsContent += "<tr><td colspan='2' style='font-weight: bold; background-color: #f0f0f0; padding: 5px;'>Extracted By:</td><td colspan='4' style='padding: 5px;'>" + auditorId + "</td></tr>";
+                        xlsContent += "<tr><td colspan='2' style='font-weight: bold; background-color: #f0f0f0; padding: 5px;'>Extraction Timestamp (UTC):</td><td colspan='4' style='padding: 5px;'>" + timestamp + "</td></tr>";
+                        xlsContent += "<tr><td colspan='2' style='font-weight: bold; background-color: #f0f0f0; padding: 5px;'>Cryptographic Digest (SHA-256):</td><td colspan='4' style='font-family: monospace; padding: 5px;'>" + mockSha256 + "</td></tr>";
+                        xlsContent += "<tr><td colspan='6'></td></tr>";
+
+                        // Helper function to extract DOM table data to HTML rows for Excel, dynamically padding the final column
+                        function extractTableToXls(tbodyId, targetCols) {
+                            let tableStr = "";
+                            const tbody = document.getElementById(tbodyId);
+                            if (!tbody) return tableStr;
+                            
+                            const rows = tbody.querySelectorAll('tr');
+                            rows.forEach(function(row) {
+                                tableStr += "<tr>";
+                                const cells = row.querySelectorAll('td');
+                                cells.forEach(function(cell, index) {
+                                    let cellText = cell.innerText.replace(/\n/g, ' ');
+                                    let style = "border: 1px solid #cccccc; padding: 5px;";
+                                    let colSpanAttr = "";
+                                    
+                                    // Apply red highlight for violations
+                                    if (cellText.toUpperCase().includes("EXCEEDED") || cellText.toUpperCase().includes("VIOLATION")) {
+                                        style += " background-color: #ffcccc; font-weight: bold; color: #cc0000;";
+                                    }
+                                    
+                                    // Calculate colspan for the final cell to ensure row matches the target width (6 columns)
+                                    if (index === cells.length - 1 && cells.length < targetCols) {
+                                        let spanNeeded = targetCols - cells.length + 1;
+                                        colSpanAttr = " colspan='" + spanNeeded + "'";
+                                    }
+                                    
+                                    tableStr += "<td" + colSpanAttr + " style='" + style + "'>" + cellText + "</td>";
+                                });
+                                tableStr += "</tr>";
+                            });
+                            return tableStr;
+                        }
+
+                        // MODULE A: Continuous Telemetry
+                        if (chkTelemetry && chkTelemetry.checked) {
+                            xlsContent += "<tr><td colspan='6' style='background-color: #f0f0f0; font-weight: bold; text-align: center; padding: 8px;'>--- 24-HOUR CONTINUOUS TELEMETRY ---</td></tr>";
+                            xlsContent += "<tr style='background-color: #e6e6e6; font-weight: bold; text-align: center;'><td>Timestamp</td><td>Effluent pH</td><td>Effluent BOD (mg/L)</td><td>Effluent COD (mg/L)</td><td>Effluent TSS (mg/L)</td><td>Discharge Rate (MLD)</td></tr>";
+                            
+                            let now = new Date();
+                            for (let i = 24; i >= 0; i--) {
+                                let t = new Date(now.getTime() - (i * 3600000));
+                                let tsStr = t.toISOString().replace('T', ' ').substring(0, 19);
+                                
+                                let ph = (7.2 + (Math.random() * 0.4 - 0.2)).toFixed(2);
+                                let bod = (18.5 + (Math.random() * 5.0 - 2.5)).toFixed(1);
+                                let cod = (145.0 + (Math.random() * 20.0 - 10.0)).toFixed(1);
+                                let tss = (95.0 + (Math.random() * 25.0 - 10.0)).toFixed(1);
+                                let flow = (1.20 + (Math.random() * 0.1)).toFixed(2);
+                                
+                                xlsContent += "<tr><td style='border: 1px solid #cccccc; padding:5px;'>" + tsStr + "</td><td style='border: 1px solid #cccccc; padding:5px;'>" + ph + "</td><td style='border: 1px solid #cccccc; padding:5px;'>" + bod + "</td><td style='border: 1px solid #cccccc; padding:5px;'>" + cod + "</td><td style='border: 1px solid #cccccc; padding:5px;'>" + tss + "</td><td style='border: 1px solid #cccccc; padding:5px;'>" + flow + "</td></tr>";
+                            }
+                            xlsContent += "<tr><td colspan='6'></td></tr>";
+                        }
+
+                        // MODULE B: Effluent Exceedance Logs
+                        if (chkViolations && chkViolations.checked) {
+                            xlsContent += "<tr><td colspan='6' style='background-color: #f0f0f0; font-weight: bold; text-align: center; padding: 8px;'>--- EFFLUENT EXCEEDANCE LOGS ---</td></tr>";
+                            xlsContent += "<tr style='background-color: #e6e6e6; font-weight: bold; text-align: center;'><td style='border: 1px solid #cccccc; padding: 5px;'>Timestamp</td><td style='border: 1px solid #cccccc; padding: 5px;'>Parameter</td><td style='border: 1px solid #cccccc; padding: 5px;'>Recorded Value</td><td style='border: 1px solid #cccccc; padding: 5px;'>Prescribed Limit</td><td colspan='2' style='border: 1px solid #cccccc; padding: 5px;'>Status</td></tr>";
+                            xlsContent += extractTableToXls('tbl-violations-body', 6);
+                            xlsContent += "<tr><td colspan='6'></td></tr>";
+                        }
+
+                        // MODULE C: Operator Override Ledger
+                        if (chkOverrides && chkOverrides.checked) {
+                            xlsContent += "<tr><td colspan='6' style='background-color: #f0f0f0; font-weight: bold; text-align: center; padding: 8px;'>--- OPERATOR MANUAL OVERRIDE LEDGER ---</td></tr>";
+                            xlsContent += "<tr style='background-color: #e6e6e6; font-weight: bold; text-align: center;'><td style='border: 1px solid #cccccc; padding: 5px;'>Timestamp</td><td style='border: 1px solid #cccccc; padding: 5px;'>Actuator / Setpoint</td><td style='border: 1px solid #cccccc; padding: 5px;'>Operator ID</td><td colspan='3' style='border: 1px solid #cccccc; padding: 5px;'>Action Taken</td></tr>";
+                            xlsContent += extractTableToXls('tbl-overrides-body', 6);
+                            xlsContent += "<tr><td colspan='6'></td></tr>";
+                        }
+
+                        // MODULE D: Sensor Calibration Certificates
+                        if (chkCalibrations && chkCalibrations.checked) {
+                            xlsContent += "<tr><td colspan='6' style='background-color: #f0f0f0; font-weight: bold; text-align: center; padding: 8px;'>--- SENSOR CALIBRATION CERTIFICATES ---</td></tr>";
+                            xlsContent += "<tr style='background-color: #e6e6e6; font-weight: bold; text-align: center;'><td style='border: 1px solid #cccccc; padding: 5px;'>Timestamp</td><td style='border: 1px solid #cccccc; padding: 5px;'>Sensor Tag</td><td style='border: 1px solid #cccccc; padding: 5px;'>Event Description</td><td colspan='3' style='border: 1px solid #cccccc; padding: 5px;'>Resolution / Status</td></tr>";
+                            xlsContent += extractTableToXls('tbl-faults-body', 6);
+                            xlsContent += "<tr><td colspan='6'></td></tr>";
+                        }
+
+                        xlsContent += "</table></body></html>";
+
+                        // Create the Blob for the Excel file
+                        const blob = new Blob([xlsContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        
+                        // Construct hidden link and trigger download programmatically
+                        const downloadLink = document.createElement("a");
+                        downloadLink.setAttribute("href", url);
+                        downloadLink.setAttribute("download", "SBR_Official_Audit_Report.xls");
+                        downloadLink.style.display = 'none';
+                        
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+                        document.body.removeChild(downloadLink);
+
+                        // Revert UX state
+                        btnExportCsv.innerHTML = originalHTML;
+                        btnExportCsv.disabled = false;
+                        btnExportCsv.style.cursor = 'pointer';
+                        btnExportCsv.style.backgroundColor = '';
+                        
+                    }, 1500); 
+                });
+            }
+
+}); // END DOMContentLoaded
+</script>
+</body>
+</html>
